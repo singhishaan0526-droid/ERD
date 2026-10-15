@@ -148,17 +148,27 @@ export const Canvas: React.FC<CanvasProps> = ({
     screenY: number;
   } | null>(null);
 
-  // Entity lookup map
-  const entityMap = new Map<string, Entity>();
-  entities.forEach(e => entityMap.set(e.id, e));
+  // Keep stable refs to avoid recreating handlers during drag
+  const entitiesRef = useRef(entities);
+  entitiesRef.current = entities;
+  const panRef = useRef(pan);
+  panRef.current = pan;
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
 
-  // 60FPS Drag loop with requestAnimationFrame
+  // 60FPS Drag loop with requestAnimationFrame (never cancelled during move)
+  const pendingUpdateRef = useRef<(() => void) | null>(null);
   const queueUpdate = useCallback((callback: () => void) => {
-    if (rafId.current) cancelAnimationFrame(rafId.current);
-    rafId.current = requestAnimationFrame(() => {
-      callback();
-      rafId.current = null;
-    });
+    pendingUpdateRef.current = callback;
+    if (!rafId.current) {
+      rafId.current = requestAnimationFrame(() => {
+        if (pendingUpdateRef.current) {
+          pendingUpdateRef.current();
+          pendingUpdateRef.current = null;
+        }
+        rafId.current = null;
+      });
+    }
   }, []);
 
   // Convert pointer event coordinates to SVG diagram coordinates via getScreenCTM().inverse()
@@ -180,12 +190,14 @@ export const Canvas: React.FC<CanvasProps> = ({
 
       // Fallback
       const rect = svg.getBoundingClientRect();
+      const currentPan = panRef.current;
+      const currentZoom = zoomRef.current;
       return {
-        x: (e.clientX - rect.left - pan.x) / zoom,
-        y: (e.clientY - rect.top - pan.y) / zoom
+        x: (e.clientX - rect.left - currentPan.x) / currentZoom,
+        y: (e.clientY - rect.top - currentPan.y) / currentZoom
       };
     },
-    [pan.x, pan.y, zoom, svgRef]
+    [svgRef]
   );
 
   // Double-tap detector helper
@@ -204,6 +216,12 @@ export const Canvas: React.FC<CanvasProps> = ({
   // Multi-touch Move & Drag Event Listener
   const handlePointerMove = useCallback(
     (e: PointerEvent) => {
+      // If mouse button was released outside, end drag
+      if (e.pointerType === 'mouse' && e.buttons === 0 && activeDragRef.current) {
+        handlePointerUp(e);
+        return;
+      }
+
       // Pinch-to-zoom (2 touches)
       if (activeTouchPoints.current.has(e.pointerId)) {
         activeTouchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -247,7 +265,7 @@ export const Canvas: React.FC<CanvasProps> = ({
         queueUpdate(() => onUpdateEntityPosition(drag.id, newX, newY));
       } else if (drag.type === 'attribute') {
         const p = toSvgPoint(e);
-        const parentEnt = entityMap.get(drag.entityId);
+        const parentEnt = entitiesRef.current.find(ent => ent.id === drag.entityId);
         if (parentEnt) {
           const targetX = p.x - drag.offsetX;
           const targetY = p.y - drag.offsetY;
@@ -271,7 +289,7 @@ export const Canvas: React.FC<CanvasProps> = ({
         });
       }
     },
-    [toSvgPoint, entityMap, onUpdateEntityPosition, onUpdateAttributeOffset, onUpdateRelationshipPosition, queueUpdate]
+    [toSvgPoint, onUpdateEntityPosition, onUpdateAttributeOffset, onUpdateRelationshipPosition, queueUpdate]
   );
 
   const handlePointerUp = useCallback(
@@ -284,6 +302,16 @@ export const Canvas: React.FC<CanvasProps> = ({
       if (longPressTimeout.current) {
         clearTimeout(longPressTimeout.current);
         longPressTimeout.current = null;
+      }
+
+      // Flush any pending RAF update
+      if (pendingUpdateRef.current) {
+        pendingUpdateRef.current();
+        pendingUpdateRef.current = null;
+      }
+      if (rafId.current) {
+        cancelAnimationFrame(rafId.current);
+        rafId.current = null;
       }
 
       const drag = activeDragRef.current;
@@ -333,6 +361,15 @@ export const Canvas: React.FC<CanvasProps> = ({
       longPressTimeout.current = null;
     }
 
+    if (pendingUpdateRef.current) {
+      pendingUpdateRef.current();
+      pendingUpdateRef.current = null;
+    }
+    if (rafId.current) {
+      cancelAnimationFrame(rafId.current);
+      rafId.current = null;
+    }
+
     const drag = activeDragRef.current;
     if (drag && drag.pointerId === e.pointerId) {
       try {
@@ -344,7 +381,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   }, []);
 
   useEffect(() => {
-    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
     window.addEventListener('pointercancel', handlePointerCancel);
 
