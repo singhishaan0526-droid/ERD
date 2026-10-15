@@ -17,9 +17,28 @@ export async function generateERDiagram(description) {
 
   const cleanDesc = description.trim();
 
+  // Try Gemini if GEMINI_API_KEY is present or key starts with AQ.
+  const geminiKey = process.env.GEMINI_API_KEY || (
+    process.env.ANTHROPIC_API_KEY && (process.env.ANTHROPIC_API_KEY.startsWith('AQ.') || process.env.ANTHROPIC_API_KEY.startsWith('AIza'))
+      ? process.env.ANTHROPIC_API_KEY
+      : null
+  );
+
+  if (geminiKey) {
+    try {
+      console.log('Generating rich ER diagram using Google Gemini...');
+      const geminiResult = await callGeminiAPI(cleanDesc, geminiKey.trim());
+      if (isValidERModel(geminiResult)) {
+        return geminiResult;
+      }
+    } catch (err) {
+      console.warn('Gemini API call issue, checking fallback:', err.message);
+    }
+  }
+
   // Try Claude if ANTHROPIC_API_KEY is present
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (apiKey) {
+  if (apiKey && apiKey.startsWith('sk-ant-')) {
     try {
       console.log('Generating rich ER diagram using Anthropic Claude...');
       const claudeResult = await callClaudeAPI(cleanDesc, apiKey);
@@ -34,6 +53,92 @@ export async function generateERDiagram(description) {
   // Fallback to our extensive DBMS Knowledge & NLP Rule Engine
   console.log('Generating rich ER diagram using built-in extensive DBMS NLP engine...');
   return parseDescriptionHeuristic(cleanDesc);
+}
+
+/**
+ * Call Google Gemini generateContent API
+ */
+async function callGeminiAPI(description, apiKey) {
+  const models = ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.8-flash'];
+  const schema = {
+    type: 'OBJECT',
+    properties: {
+      entities: {
+        type: 'ARRAY',
+        items: {
+          type: 'OBJECT',
+          properties: {
+            name: { type: 'STRING' },
+            isWeak: { type: 'BOOLEAN' },
+            attributes: {
+              type: 'ARRAY',
+              items: {
+                type: 'OBJECT',
+                properties: {
+                  name: { type: 'STRING' },
+                  isPrimaryKey: { type: 'BOOLEAN' },
+                  attributeType: {
+                    type: 'STRING',
+                    enum: ['primary', 'partial', 'multivalued', 'derived', 'composite', 'normal']
+                  },
+                  subAttributes: { type: 'ARRAY', items: { type: 'STRING' } }
+                },
+                required: ['name']
+              }
+            }
+          },
+          required: ['name', 'attributes']
+        }
+      },
+      relationships: {
+        type: 'ARRAY',
+        items: {
+          type: 'OBJECT',
+          properties: {
+            from: { type: 'STRING' },
+            to: { type: 'STRING' },
+            name: { type: 'STRING' },
+            cardinality: { type: 'STRING', enum: ['1:1', '1:N', 'N:1', 'M:N'] },
+            isIdentifying: { type: 'BOOLEAN' }
+          },
+          required: ['from', 'to', 'name', 'cardinality']
+        }
+      }
+    },
+    required: ['entities', 'relationships']
+  };
+
+  let lastError = null;
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: 'You are a university DBMS professor and database architect. Generate a rich Entity-Relationship model in Chen notation.' }]
+          },
+          contents: [{ parts: [{ text: description }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: schema
+          }
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        lastError = err?.error?.message;
+        continue;
+      }
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) return JSON.parse(text);
+    } catch (e) {
+      lastError = e.message;
+    }
+  }
+  throw new Error(lastError || 'Gemini generation failed');
 }
 
 /**
