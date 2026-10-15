@@ -152,7 +152,7 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to generate diagram');
+        throw new Error(err.error || `Server error (status ${response.status})`);
       }
 
       const data: RawApiResponse = await response.json();

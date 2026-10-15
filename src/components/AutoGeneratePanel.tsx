@@ -55,7 +55,7 @@ export const AutoGeneratePanel: React.FC<AutoGeneratePanelProps> = ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server returned ${response.status}`);
+        throw new Error(errorData.error || `Server error (status ${response.status})`);
       }
 
       const data: RawApiResponse = await response.json();
