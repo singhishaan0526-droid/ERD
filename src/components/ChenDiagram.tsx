@@ -112,11 +112,13 @@ export const ChenDiagram: React.FC<ChenDiagramProps> = ({
                   strokeWidth="1.6"
                 />
                 <text
+                  pointerEvents="none"
                   textAnchor="middle"
                   dominantBaseline="central"
                   fontSize="12"
                   fontWeight="800"
                   fill="#1B3820"
+                  style={{ userSelect: 'none' }}
                 >
                   {cardFrom}
                 </text>
@@ -135,11 +137,13 @@ export const ChenDiagram: React.FC<ChenDiagramProps> = ({
                   strokeWidth="1.6"
                 />
                 <text
+                  pointerEvents="none"
                   textAnchor="middle"
                   dominantBaseline="central"
                   fontSize="12"
                   fontWeight="800"
                   fill="#1B3820"
+                  style={{ userSelect: 'none' }}
                 >
                   {cardTo}
                 </text>
@@ -218,6 +222,7 @@ export const ChenDiagram: React.FC<ChenDiagramProps> = ({
 
                 {/* Attribute Name Text */}
                 <text
+                  pointerEvents="none"
                   x="0"
                   y="1"
                   textAnchor="middle"
@@ -225,6 +230,7 @@ export const ChenDiagram: React.FC<ChenDiagramProps> = ({
                   fontSize="12.5"
                   fontWeight={isPk || isPartial ? '700' : '500'}
                   fill="#1B3820"
+                  style={{ userSelect: 'none' }}
                 >
                   {attr.name}
                 </text>
@@ -337,6 +343,7 @@ export const ChenDiagram: React.FC<ChenDiagramProps> = ({
 
               {/* Relationship Name */}
               <text
+                pointerEvents="none"
                 x={cx}
                 y={cy + 1}
                 textAnchor="middle"
@@ -345,6 +352,7 @@ export const ChenDiagram: React.FC<ChenDiagramProps> = ({
                 fontWeight="700"
                 fill="#1B3820"
                 letterSpacing="0.02em"
+                style={{ userSelect: 'none' }}
               >
                 {rel.name.replace(/_/g, ' ')}
               </text>
@@ -431,6 +439,7 @@ export const ChenDiagram: React.FC<ChenDiagramProps> = ({
 
               {/* Entity Name */}
               <text
+                pointerEvents="none"
                 x={ent.x}
                 y={ent.y + 1}
                 textAnchor="middle"
@@ -439,6 +448,7 @@ export const ChenDiagram: React.FC<ChenDiagramProps> = ({
                 fontWeight="800"
                 fill="#1B3820"
                 letterSpacing="-0.01em"
+                style={{ userSelect: 'none' }}
               >
                 {ent.name}
               </text>
