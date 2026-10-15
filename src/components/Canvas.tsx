@@ -42,12 +42,51 @@ interface CanvasProps {
   svgRef: React.RefObject<SVGSVGElement>;
 }
 
-type DragState =
-  | { type: 'canvas'; startX: number; startY: number; initPanX: number; initPanY: number }
-  | { type: 'entity'; entityId: string; startPointerX: number; startPointerY: number; initX: number; initY: number }
-  | { type: 'attribute'; entityId: string; attrId: string; startPointerX: number; startPointerY: number; initOffsetX: number; initOffsetY: number }
-  | { type: 'relationship'; relId: string; startPointerX: number; startPointerY: number; initX: number; initY: number }
-  | null;
+type ActiveDrag =
+  | {
+      type: 'entity';
+      id: string;
+      pointerId: number;
+      element: Element;
+      startClientX: number;
+      startClientY: number;
+      offsetX: number;
+      offsetY: number;
+      hasMoved: boolean;
+    }
+  | {
+      type: 'attribute';
+      entityId: string;
+      attrId: string;
+      pointerId: number;
+      element: Element;
+      startClientX: number;
+      startClientY: number;
+      offsetX: number;
+      offsetY: number;
+      hasMoved: boolean;
+    }
+  | {
+      type: 'relationship';
+      id: string;
+      pointerId: number;
+      element: Element;
+      startClientX: number;
+      startClientY: number;
+      offsetX: number;
+      offsetY: number;
+      hasMoved: boolean;
+    }
+  | {
+      type: 'canvas';
+      pointerId: number;
+      element: Element;
+      startClientX: number;
+      startClientY: number;
+      initPanX: number;
+      initPanY: number;
+      hasMoved: boolean;
+    };
 
 export const Canvas: React.FC<CanvasProps> = ({
   entities,
@@ -74,6 +113,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   svgRef
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<SVGGElement>(null);
 
   // Pan and Zoom
   const [zoom, setZoom] = useState(1);
@@ -85,10 +125,9 @@ export const Canvas: React.FC<CanvasProps> = ({
   const [selectedRelationshipId, setSelectedRelationshipId] = useState<string | null>(null);
 
   // Dragging refs for 60fps requestAnimationFrame
-  const dragStateRef = useRef<DragState>(null);
+  const activeDragRef = useRef<ActiveDrag | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const rafId = useRef<number | null>(null);
-  const pointerDistanceTraveled = useRef(0);
 
   // Pinch-to-zoom multi-touch tracking
   const activeTouchPoints = useRef<Map<number, { x: number; y: number }>>(new Map());
@@ -109,6 +148,10 @@ export const Canvas: React.FC<CanvasProps> = ({
     screenY: number;
   } | null>(null);
 
+  // Entity lookup map
+  const entityMap = new Map<string, Entity>();
+  entities.forEach(e => entityMap.set(e.id, e));
+
   // 60FPS Drag loop with requestAnimationFrame
   const queueUpdate = useCallback((callback: () => void) => {
     if (rafId.current) cancelAnimationFrame(rafId.current);
@@ -118,39 +161,68 @@ export const Canvas: React.FC<CanvasProps> = ({
     });
   }, []);
 
-  // Multi-touch & Drag Event Listeners
-  useEffect(() => {
-    const handleWindowPointerMove = (e: PointerEvent) => {
-      // Update active touch point
+  // Convert pointer event coordinates to SVG diagram coordinates via getScreenCTM().inverse()
+  const toSvgPoint = useCallback(
+    (e: { clientX: number; clientY: number }): { x: number; y: number } => {
+      const svg = svgRef.current;
+      if (!svg) return { x: e.clientX, y: e.clientY };
+
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+
+      const target = viewportRef.current || svg;
+      const ctm = target.getScreenCTM();
+      if (ctm) {
+        const transformed = pt.matrixTransform(ctm.inverse());
+        return { x: transformed.x, y: transformed.y };
+      }
+
+      // Fallback
+      const rect = svg.getBoundingClientRect();
+      return {
+        x: (e.clientX - rect.left - pan.x) / zoom,
+        y: (e.clientY - rect.top - pan.y) / zoom
+      };
+    },
+    [pan.x, pan.y, zoom, svgRef]
+  );
+
+  // Double-tap detector helper
+  const checkDoubleTap = useCallback((id: string, onDouble: () => void) => {
+    const now = Date.now();
+    if (lastTapElementId.current === id && now - lastTapTime.current < 320) {
+      onDouble();
+      lastTapTime.current = 0;
+      lastTapElementId.current = '';
+    } else {
+      lastTapTime.current = now;
+      lastTapElementId.current = id;
+    }
+  }, []);
+
+  // Multi-touch Move & Drag Event Listener
+  const handlePointerMove = useCallback(
+    (e: PointerEvent) => {
+      // Pinch-to-zoom (2 touches)
       if (activeTouchPoints.current.has(e.pointerId)) {
         activeTouchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      }
-
-      // Handle Pinch-to-Zoom (2 touches)
-      if (activeTouchPoints.current.size === 2) {
-        const points = Array.from(activeTouchPoints.current.values());
-        const dist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
-
-        if (initialPinchDistance.current === null) {
-          initialPinchDistance.current = dist;
-          initialPinchZoom.current = zoom;
-        } else if (dist > 10) {
-          const factor = dist / initialPinchDistance.current;
-          const newZoom = Math.min(Math.max(initialPinchZoom.current * factor, 0.25), 3.0);
-          queueUpdate(() => setZoom(newZoom));
+        if (activeTouchPoints.current.size === 2 && initialPinchDistance.current !== null) {
+          const pts = Array.from(activeTouchPoints.current.values());
+          const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+          if (dist > 10 && initialPinchDistance.current > 0) {
+            const factor = dist / initialPinchDistance.current;
+            const newZoom = Math.min(Math.max(initialPinchZoom.current * factor, 0.25), 3.0);
+            queueUpdate(() => setZoom(newZoom));
+          }
+          return;
         }
-        return;
       }
 
-      // Handle 1 finger / mouse drag
-      const curDrag = dragStateRef.current;
-      if (!curDrag) return;
+      const drag = activeDragRef.current;
+      if (!drag || drag.pointerId !== e.pointerId) return;
 
-      const moveDist = Math.hypot(
-        e.clientX - (curDrag.type === 'canvas' ? curDrag.startX : curDrag.startPointerX),
-        e.clientY - (curDrag.type === 'canvas' ? curDrag.startY : curDrag.startPointerY)
-      );
-      pointerDistanceTraveled.current += moveDist;
+      const moveDist = Math.hypot(e.clientX - drag.startClientX, e.clientY - drag.startClientY);
 
       // Cancel long press if moved more than 6px
       if (moveDist > 6 && longPressTimeout.current) {
@@ -158,50 +230,52 @@ export const Canvas: React.FC<CanvasProps> = ({
         longPressTimeout.current = null;
       }
 
-      if (curDrag.type === 'canvas') {
-        const dx = e.clientX - curDrag.startX;
-        const dy = e.clientY - curDrag.startY;
+      // 4px deadband: moving more than 4px turns tap into drag
+      if (!drag.hasMoved) {
+        if (moveDist > 4) {
+          drag.hasMoved = true;
+          setIsDragging(true);
+        } else {
+          return;
+        }
+      }
+
+      if (drag.type === 'entity') {
+        const p = toSvgPoint(e);
+        const newX = Math.round(p.x - drag.offsetX);
+        const newY = Math.round(p.y - drag.offsetY);
+        queueUpdate(() => onUpdateEntityPosition(drag.id, newX, newY));
+      } else if (drag.type === 'attribute') {
+        const p = toSvgPoint(e);
+        const parentEnt = entityMap.get(drag.entityId);
+        if (parentEnt) {
+          const targetX = p.x - drag.offsetX;
+          const targetY = p.y - drag.offsetY;
+          const newOffsetX = Math.round(targetX - parentEnt.x);
+          const newOffsetY = Math.round(targetY - parentEnt.y);
+          queueUpdate(() => onUpdateAttributeOffset(drag.entityId, drag.attrId, newOffsetX, newOffsetY));
+        }
+      } else if (drag.type === 'relationship') {
+        const p = toSvgPoint(e);
+        const newX = Math.round(p.x - drag.offsetX);
+        const newY = Math.round(p.y - drag.offsetY);
+        queueUpdate(() => onUpdateRelationshipPosition(drag.id, newX, newY));
+      } else if (drag.type === 'canvas') {
+        const dx = e.clientX - drag.startClientX;
+        const dy = e.clientY - drag.startClientY;
         queueUpdate(() => {
           setPan({
-            x: curDrag.initPanX + dx,
-            y: curDrag.initPanY + dy
+            x: drag.initPanX + dx,
+            y: drag.initPanY + dy
           });
         });
-      } else if (curDrag.type === 'entity') {
-        const dx = (e.clientX - curDrag.startPointerX) / zoom;
-        const dy = (e.clientY - curDrag.startPointerY) / zoom;
-        queueUpdate(() => {
-          onUpdateEntityPosition(
-            curDrag.entityId,
-            Math.round(curDrag.initX + dx),
-            Math.round(curDrag.initY + dy)
-          );
-        });
-      } else if (curDrag.type === 'attribute') {
-        const dx = (e.clientX - curDrag.startPointerX) / zoom;
-        const dy = (e.clientY - curDrag.startPointerY) / zoom;
-        queueUpdate(() => {
-          onUpdateAttributeOffset(
-            curDrag.entityId,
-            curDrag.attrId,
-            Math.round(curDrag.initOffsetX + dx),
-            Math.round(curDrag.initOffsetY + dy)
-          );
-        });
-      } else if (curDrag.type === 'relationship') {
-        const dx = (e.clientX - curDrag.startPointerX) / zoom;
-        const dy = (e.clientY - curDrag.startPointerY) / zoom;
-        queueUpdate(() => {
-          onUpdateRelationshipPosition(
-            curDrag.relId,
-            Math.round(curDrag.initX + dx),
-            Math.round(curDrag.initY + dy)
-          );
-        });
       }
-    };
+    },
+    [toSvgPoint, entityMap, onUpdateEntityPosition, onUpdateAttributeOffset, onUpdateRelationshipPosition, queueUpdate]
+  );
 
-    const handleWindowPointerUp = (e: PointerEvent) => {
+  const handlePointerUp = useCallback(
+    (e: PointerEvent) => {
       activeTouchPoints.current.delete(e.pointerId);
       if (activeTouchPoints.current.size < 2) {
         initialPinchDistance.current = null;
@@ -212,20 +286,74 @@ export const Canvas: React.FC<CanvasProps> = ({
         longPressTimeout.current = null;
       }
 
-      dragStateRef.current = null;
-      setIsDragging(false);
-    };
+      const drag = activeDragRef.current;
+      if (!drag || drag.pointerId !== e.pointerId) return;
 
-    window.addEventListener('pointermove', handleWindowPointerMove, { passive: true });
-    window.addEventListener('pointerup', handleWindowPointerUp);
-    window.addEventListener('pointercancel', handleWindowPointerUp);
+      try {
+        drag.element.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+
+      // Tap without moving (dist <= 4px) -> SELECT
+      if (!drag.hasMoved) {
+        if (drag.type === 'entity') {
+          onSelectEntity(drag.id);
+          setSelectedAttributeId(null);
+          setSelectedRelationshipId(null);
+          checkDoubleTap(drag.id, () => onOpenBottomSheet('edit-entity'));
+        } else if (drag.type === 'attribute') {
+          onSelectEntity(drag.entityId);
+          setSelectedAttributeId(drag.attrId);
+          setSelectedRelationshipId(null);
+          checkDoubleTap(drag.attrId, () => onOpenBottomSheet('edit-attribute'));
+        } else if (drag.type === 'relationship') {
+          onSelectEntity(null);
+          setSelectedAttributeId(null);
+          setSelectedRelationshipId(drag.id);
+          checkDoubleTap(drag.id, () => onOpenBottomSheet('edit-relationship'));
+        } else if (drag.type === 'canvas') {
+          onSelectEntity(null);
+          setSelectedAttributeId(null);
+          setSelectedRelationshipId(null);
+        }
+      }
+
+      activeDragRef.current = null;
+      setIsDragging(false);
+    },
+    [checkDoubleTap, onSelectEntity, onOpenBottomSheet]
+  );
+
+  const handlePointerCancel = useCallback((e: PointerEvent) => {
+    activeTouchPoints.current.delete(e.pointerId);
+    if (activeTouchPoints.current.size < 2) {
+      initialPinchDistance.current = null;
+    }
+    if (longPressTimeout.current) {
+      clearTimeout(longPressTimeout.current);
+      longPressTimeout.current = null;
+    }
+
+    const drag = activeDragRef.current;
+    if (drag && drag.pointerId === e.pointerId) {
+      try {
+        drag.element.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+      activeDragRef.current = null;
+      setIsDragging(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerCancel);
 
     return () => {
-      window.removeEventListener('pointermove', handleWindowPointerMove);
-      window.removeEventListener('pointerup', handleWindowPointerUp);
-      window.removeEventListener('pointercancel', handleWindowPointerUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerCancel);
     };
-  }, [zoom, onUpdateEntityPosition, onUpdateAttributeOffset, onUpdateRelationshipPosition, queueUpdate]);
+  }, [handlePointerMove, handlePointerUp, handlePointerCancel]);
 
   // Wheel zoom
   const handleWheel = (e: React.WheelEvent) => {
@@ -275,72 +403,76 @@ export const Canvas: React.FC<CanvasProps> = ({
   }, [entities]);
 
   // Pan on empty canvas
-  const handlePointerDownCanvas = (e: React.PointerEvent) => {
-    activeTouchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  const handlePointerDownCanvas = (e: React.PointerEvent<SVGSVGElement>) => {
+    const target = e.target as HTMLElement | SVGElement;
+    const isBg = target.id === 'canvas-bg' || target.tagName === 'svg' || target.id === 'canvas-svg';
+    if (!isBg) return;
+
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+
     setLongPressMenu(null);
+    const targetEl = e.currentTarget as Element;
+    try {
+      targetEl.setPointerCapture(e.pointerId);
+    } catch (_) {}
 
-    const target = e.target as HTMLElement;
-    if (target.tagName === 'svg' || target.id === 'canvas-bg') {
-      onSelectEntity(null);
-      setSelectedAttributeId(null);
-      setSelectedRelationshipId(null);
+    activeDragRef.current = {
+      type: 'canvas',
+      pointerId: e.pointerId,
+      element: targetEl,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      initPanX: pan.x,
+      initPanY: pan.y,
+      hasMoved: false
+    };
 
-      dragStateRef.current = {
-        type: 'canvas',
-        startX: e.clientX,
-        startY: e.clientY,
-        initPanX: pan.x,
-        initPanY: pan.y
-      };
-      setIsDragging(true);
-      pointerDistanceTraveled.current = 0;
-    }
-  };
-
-  // Helper for double-tap detection
-  const checkDoubleTap = (id: string, onDouble: () => void) => {
-    const now = Date.now();
-    if (lastTapElementId.current === id && now - lastTapTime.current < 320) {
-      onDouble();
-      lastTapTime.current = 0;
-      lastTapElementId.current = '';
-    } else {
-      lastTapTime.current = now;
-      lastTapElementId.current = id;
+    if (e.pointerType === 'touch') {
+      activeTouchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (activeTouchPoints.current.size === 2) {
+        const pts = Array.from(activeTouchPoints.current.values());
+        initialPinchDistance.current = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        initialPinchZoom.current = zoom;
+      }
     }
   };
 
   // Start Entity Drag / Tap / Long Press
   const handleStartDragEntity = (entityId: string, startX: number, startY: number, e: React.PointerEvent) => {
-    activeTouchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
     e.stopPropagation();
 
-    pointerDistanceTraveled.current = 0;
-    onSelectEntity(entityId);
-    setSelectedAttributeId(null);
-    setSelectedRelationshipId(null);
+    const targetEl = e.currentTarget as Element;
+    try {
+      targetEl.setPointerCapture(e.pointerId);
+    } catch (_) {}
 
-    dragStateRef.current = {
+    const p = toSvgPoint(e);
+    const offset = { x: p.x - startX, y: p.y - startY };
+
+    activeDragRef.current = {
       type: 'entity',
-      entityId,
-      startPointerX: e.clientX,
-      startPointerY: e.clientY,
-      initX: startX,
-      initY: startY
+      id: entityId,
+      pointerId: e.pointerId,
+      element: targetEl,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      offsetX: offset.x,
+      offsetY: offset.y,
+      hasMoved: false
     };
-    setIsDragging(true);
 
-    // Double-tap opens edit sheet
-    checkDoubleTap(entityId, () => {
-      onOpenBottomSheet('edit-entity');
-    });
+    if (e.pointerType === 'touch') {
+      activeTouchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
 
     // Start 500ms Long Press timer
     if (longPressTimeout.current) clearTimeout(longPressTimeout.current);
     const clientX = e.clientX;
     const clientY = e.clientY;
     longPressTimeout.current = setTimeout(() => {
-      if (pointerDistanceTraveled.current < 8) {
+      const cur = activeDragRef.current;
+      if (cur && !cur.hasMoved) {
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
           navigator.vibrate?.(50);
         }
@@ -356,39 +488,40 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   // Start Attribute Drag / Tap / Long Press
   const handleStartDragAttribute = (entityId: string, attrId: string, startX: number, startY: number, e: React.PointerEvent) => {
-    activeTouchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
     e.stopPropagation();
 
-    pointerDistanceTraveled.current = 0;
-    setSelectedAttributeId(attrId);
-    onSelectEntity(entityId);
-    setSelectedRelationshipId(null);
+    const targetEl = e.currentTarget as Element;
+    try {
+      targetEl.setPointerCapture(e.pointerId);
+    } catch (_) {}
 
-    const entity = entities.find(ent => ent.id === entityId);
-    const attr = entity?.attributes.find(a => a.id === attrId);
-    const curOffsetX = attr?.offsetX ?? 0;
-    const curOffsetY = attr?.offsetY ?? -110;
+    const p = toSvgPoint(e);
+    const offset = { x: p.x - startX, y: p.y - startY };
 
-    dragStateRef.current = {
+    activeDragRef.current = {
       type: 'attribute',
       entityId,
       attrId,
-      startPointerX: e.clientX,
-      startPointerY: e.clientY,
-      initOffsetX: curOffsetX,
-      initOffsetY: curOffsetY
+      pointerId: e.pointerId,
+      element: targetEl,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      offsetX: offset.x,
+      offsetY: offset.y,
+      hasMoved: false
     };
-    setIsDragging(true);
 
-    checkDoubleTap(attrId, () => {
-      onOpenBottomSheet('edit-attribute');
-    });
+    if (e.pointerType === 'touch') {
+      activeTouchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
 
     if (longPressTimeout.current) clearTimeout(longPressTimeout.current);
     const clientX = e.clientX;
     const clientY = e.clientY;
     longPressTimeout.current = setTimeout(() => {
-      if (pointerDistanceTraveled.current < 8) {
+      const cur = activeDragRef.current;
+      if (cur && !cur.hasMoved) {
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
           navigator.vibrate?.(50);
         }
@@ -405,33 +538,39 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   // Start Relationship Drag / Tap / Long Press
   const handleStartDragRelationship = (relId: string, startX: number, startY: number, e: React.PointerEvent) => {
-    activeTouchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
     e.stopPropagation();
 
-    pointerDistanceTraveled.current = 0;
-    setSelectedRelationshipId(relId);
-    onSelectEntity(null);
-    setSelectedAttributeId(null);
+    const targetEl = e.currentTarget as Element;
+    try {
+      targetEl.setPointerCapture(e.pointerId);
+    } catch (_) {}
 
-    dragStateRef.current = {
+    const p = toSvgPoint(e);
+    const offset = { x: p.x - startX, y: p.y - startY };
+
+    activeDragRef.current = {
       type: 'relationship',
-      relId,
-      startPointerX: e.clientX,
-      startPointerY: e.clientY,
-      initX: startX,
-      initY: startY
+      id: relId,
+      pointerId: e.pointerId,
+      element: targetEl,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      offsetX: offset.x,
+      offsetY: offset.y,
+      hasMoved: false
     };
-    setIsDragging(true);
 
-    checkDoubleTap(relId, () => {
-      onOpenBottomSheet('edit-relationship');
-    });
+    if (e.pointerType === 'touch') {
+      activeTouchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
 
     if (longPressTimeout.current) clearTimeout(longPressTimeout.current);
     const clientX = e.clientX;
     const clientY = e.clientY;
     longPressTimeout.current = setTimeout(() => {
-      if (pointerDistanceTraveled.current < 8) {
+      const cur = activeDragRef.current;
+      if (cur && !cur.hasMoved) {
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
           navigator.vibrate?.(50);
         }
@@ -464,7 +603,7 @@ export const Canvas: React.FC<CanvasProps> = ({
         backgroundColor: '#ffffff',
         cursor: isDragging ? 'grabbing' : 'default',
         userSelect: 'none',
-        touchAction: 'none' // Crucial: prevents browser scroll on touch gestures
+        touchAction: 'none'
       }}
     >
       {/* SVG Canvas */}
@@ -479,7 +618,8 @@ export const Canvas: React.FC<CanvasProps> = ({
           height: '100%',
           display: 'block',
           backgroundColor: '#ffffff',
-          touchAction: 'none'
+          touchAction: 'none',
+          userSelect: 'none'
         }}
       >
         <defs>
@@ -488,9 +628,9 @@ export const Canvas: React.FC<CanvasProps> = ({
           </pattern>
         </defs>
 
-        <rect id="canvas-bg" width="100%" height="100%" fill="url(#dot-grid)" />
+        <rect id="canvas-bg" width="100%" height="100%" fill="url(#dot-grid)" style={{ pointerEvents: 'all' }} />
 
-        <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
+        <g ref={viewportRef} id="viewport-group" transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
           {hasData && (
             <ChenDiagram
               entities={entities}
@@ -502,34 +642,36 @@ export const Canvas: React.FC<CanvasProps> = ({
                 onSelectEntity(id);
                 setSelectedAttributeId(null);
                 setSelectedRelationshipId(null);
-                if (id) onOpenBottomSheet('edit-entity');
               }}
               onSelectAttribute={(entId, attrId) => {
                 onSelectEntity(entId);
                 setSelectedAttributeId(attrId);
                 setSelectedRelationshipId(null);
-                onOpenBottomSheet('edit-attribute');
               }}
               onSelectRelationship={(relId) => {
                 setSelectedRelationshipId(relId);
                 onSelectEntity(null);
                 setSelectedAttributeId(null);
-                onOpenBottomSheet('edit-relationship');
               }}
               onStartDragEntity={handleStartDragEntity}
               onStartDragAttribute={handleStartDragAttribute}
               onStartDragRelationship={handleStartDragRelationship}
               onDoubleClickEntity={(id) => {
                 onSelectEntity(id);
+                setSelectedAttributeId(null);
+                setSelectedRelationshipId(null);
                 onOpenBottomSheet('edit-entity');
               }}
               onDoubleClickAttribute={(entId, attrId) => {
                 onSelectEntity(entId);
                 setSelectedAttributeId(attrId);
+                setSelectedRelationshipId(null);
                 onOpenBottomSheet('edit-attribute');
               }}
               onDoubleClickRelationship={(relId) => {
                 setSelectedRelationshipId(relId);
+                onSelectEntity(null);
+                setSelectedAttributeId(null);
                 onOpenBottomSheet('edit-relationship');
               }}
             />

@@ -169,16 +169,12 @@ export const ChenDiagram: React.FC<ChenDiagramProps> = ({
               <g
                 key={`attr_oval_${ent.id}_${attr.id}`}
                 transform={`translate(${attrX}, ${attrY})`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectAttribute(ent.id, attr.id);
-                }}
                 onDoubleClick={(e) => {
                   e.stopPropagation();
                   onDoubleClickAttribute(ent.id, attr.id, attr.name);
                 }}
                 onPointerDown={(e) => onStartDragAttribute(ent.id, attr.id, attrX, attrY, e)}
-                style={{ cursor: 'move', userSelect: 'none' }}
+                style={{ cursor: 'grab', userSelect: 'none', touchAction: 'none' }}
               >
                 {/* Selection Halo */}
                 {isSelected && (
@@ -265,6 +261,7 @@ export const ChenDiagram: React.FC<ChenDiagramProps> = ({
                     e.stopPropagation();
                     onDoubleClickAttribute(ent.id, attr.id, attr.name);
                   }}
+                  onPointerDown={(e) => e.stopPropagation()}
                   style={{ cursor: 'pointer', opacity: 0.65 }}
                 >
                   <circle cx="5" cy="5" r="6" fill="#F0F7F1" stroke="#4CAF50" strokeWidth="0.8" />
@@ -299,16 +296,12 @@ export const ChenDiagram: React.FC<ChenDiagramProps> = ({
           return (
             <g
               key={`rel_diamond_${rel.id}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectRelationship(rel.id);
-              }}
               onDoubleClick={(e) => {
                 e.stopPropagation();
                 onDoubleClickRelationship(rel.id, rel.name);
               }}
               onPointerDown={(e) => onStartDragRelationship(rel.id, cx, cy, e)}
-              style={{ cursor: 'move', userSelect: 'none' }}
+              style={{ cursor: 'grab', userSelect: 'none', touchAction: 'none' }}
             >
               {/* Selection Halo */}
               {isSelected && (
@@ -363,6 +356,7 @@ export const ChenDiagram: React.FC<ChenDiagramProps> = ({
                   e.stopPropagation();
                   onDoubleClickRelationship(rel.id, rel.name);
                 }}
+                onPointerDown={(e) => e.stopPropagation()}
                 style={{ cursor: 'pointer', opacity: 0.65 }}
               >
                 <circle cx="5" cy="5" r="6" fill="#F0F7F1" stroke="#4CAF50" strokeWidth="0.8" />
@@ -386,16 +380,12 @@ export const ChenDiagram: React.FC<ChenDiagramProps> = ({
           return (
             <g
               key={`ent_rect_${ent.id}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectEntity(ent.id);
-              }}
               onDoubleClick={(e) => {
                 e.stopPropagation();
                 onDoubleClickEntity(ent.id, ent.name);
               }}
               onPointerDown={(e) => onStartDragEntity(ent.id, ent.x, ent.y, e)}
-              style={{ cursor: 'move', userSelect: 'none' }}
+              style={{ cursor: 'grab', userSelect: 'none', touchAction: 'none' }}
             >
               {/* Selection Halo */}
               {isSelected && (
@@ -460,6 +450,7 @@ export const ChenDiagram: React.FC<ChenDiagramProps> = ({
                   e.stopPropagation();
                   onDoubleClickEntity(ent.id, ent.name);
                 }}
+                onPointerDown={(e) => e.stopPropagation()}
                 style={{ cursor: 'pointer', opacity: 0.7 }}
               >
                 <circle cx="5" cy="5" r="6" fill="#F0F7F1" stroke="#4CAF50" strokeWidth="0.8" />
