@@ -101,9 +101,15 @@ export default async function handler(req: any, res: any) {
     }
 
     // 3. Read process.env.ANTHROPIC_API_KEY
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
+    const rawKey = process.env.ANTHROPIC_API_KEY;
+    if (!rawKey) {
       return res.status(500).json({ error: 'Server is missing ANTHROPIC_API_KEY' });
+    }
+    const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
+    if (apiKey.startsWith('apikey_')) {
+      return res.status(400).json({
+        error: 'Invalid API key: You entered an Anthropic Key ID (starts with "apikey_") instead of the Secret Key. Anthropic secret keys start with "sk-ant-api03-". Please generate a new key in Anthropic Console and copy the sk-ant-... token.'
+      });
     }
 
     // 4. Call Claude API with er_diagram tool
