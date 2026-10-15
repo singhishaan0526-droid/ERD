@@ -1,6 +1,6 @@
 {
   "name": "er-diagram-maker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Entity-Relationship (ER) Diagram Maker with Auto-Generate and Chen notation",
   "type": "module",
   "scripts": {
