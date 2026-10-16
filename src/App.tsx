@@ -286,7 +286,14 @@ export const App: React.FC = () => {
 
   // --- Download Handlers with Mobile Fallback ---
   const handleDownloadPng = async () => {
-    if (!svgRef.current || entities.length === 0) return;
+    if (entities.length === 0) {
+      showToast('Add or generate entities first to download.');
+      return;
+    }
+    if (!svgRef.current) {
+      showToast('Canvas not ready for export.');
+      return;
+    }
     setIsDownloading(true);
     try {
       await downloadPng(
@@ -305,7 +312,14 @@ export const App: React.FC = () => {
   };
 
   const handleDownloadSvg = () => {
-    if (!svgRef.current || entities.length === 0) return;
+    if (entities.length === 0) {
+      showToast('Add or generate entities first to download.');
+      return;
+    }
+    if (!svgRef.current) {
+      showToast('Canvas not ready for export.');
+      return;
+    }
     try {
       downloadSvg(svgRef.current, 'er-diagram.svg');
       showToast('Downloaded er-diagram.svg');
@@ -434,6 +448,7 @@ export const App: React.FC = () => {
       <MobileImagePreviewModal
         dataUrl={mobilePreviewDataUrl}
         onClose={() => setMobilePreviewDataUrl(null)}
+        onDownloadSvg={handleDownloadSvg}
       />
 
       {/* Help Modal */}

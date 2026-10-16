@@ -4,9 +4,14 @@ import { X, Download, Share2 } from 'lucide-react';
 interface MobileImagePreviewModalProps {
   dataUrl: string | null;
   onClose: () => void;
+  onDownloadSvg?: () => void;
 }
 
-export const MobileImagePreviewModal: React.FC<MobileImagePreviewModalProps> = ({ dataUrl, onClose }) => {
+export const MobileImagePreviewModal: React.FC<MobileImagePreviewModalProps> = ({
+  dataUrl,
+  onClose,
+  onDownloadSvg
+}) => {
   if (!dataUrl) return null;
 
   const handleShare = async () => {
@@ -70,7 +75,7 @@ export const MobileImagePreviewModal: React.FC<MobileImagePreviewModalProps> = (
               Diagram Export Ready
             </h3>
             <p style={{ fontSize: '12px', color: 'var(--color-primary-dark)', fontWeight: 600 }}>
-              Long-press the image to save
+              Touch & hold image to Save to Photos
             </p>
           </div>
           <button onClick={onClose} className="btn btn-ghost" style={{ width: '44px', height: '44px', padding: 0 }}>
@@ -121,18 +126,32 @@ export const MobileImagePreviewModal: React.FC<MobileImagePreviewModalProps> = (
           padding: '12px 18px',
           borderTop: '1px solid var(--color-border)',
           display: 'flex',
-          gap: '10px',
+          gap: '8px',
           justifyContent: 'flex-end',
+          flexWrap: 'wrap',
           backgroundColor: '#ffffff'
         }}>
+          {onDownloadSvg && (
+            <button
+              onClick={() => {
+                onDownloadSvg();
+                onClose();
+              }}
+              className="btn btn-ghost"
+              style={{ minHeight: '44px', fontSize: '13px', fontWeight: 700 }}
+            >
+              <span>SVG</span>
+            </button>
+          )}
+
           {typeof navigator !== 'undefined' && 'share' in navigator && (
             <button
               onClick={handleShare}
               className="btn btn-secondary"
-              style={{ minHeight: '44px', fontSize: '14px' }}
+              style={{ minHeight: '44px', fontSize: '13.5px' }}
             >
               <Share2 size={16} />
-              <span>Share Image</span>
+              <span>Share</span>
             </button>
           )}
 
@@ -140,10 +159,10 @@ export const MobileImagePreviewModal: React.FC<MobileImagePreviewModalProps> = (
             href={dataUrl}
             download="er-diagram.png"
             className="btn btn-primary"
-            style={{ minHeight: '44px', fontSize: '14px', textDecoration: 'none' }}
+            style={{ minHeight: '44px', fontSize: '13.5px', textDecoration: 'none' }}
           >
             <Download size={16} />
-            <span>Download Directly</span>
+            <span>Save PNG</span>
           </a>
         </div>
       </div>
