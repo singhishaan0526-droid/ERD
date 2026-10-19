@@ -1,11 +1,12 @@
 import React from 'react';
-import { Sparkles, Plus, GitCommit, LayoutGrid, Download } from 'lucide-react';
+import { Sparkles, Plus, GitCommit, Database, Download } from 'lucide-react';
 import { BottomSheetMode } from './MobileBottomSheet';
 
 interface MobileBottomToolbarProps {
   onOpenMode: (mode: BottomSheetMode) => void;
   onAutoLayout: () => void;
   onOpenDownload: () => void;
+  onOpenSql: () => void;
   entityCount: number;
 }
 
@@ -13,6 +14,7 @@ export const MobileBottomToolbar: React.FC<MobileBottomToolbarProps> = ({
   onOpenMode,
   onAutoLayout,
   onOpenDownload,
+  onOpenSql,
   entityCount
 }) => {
   return (
@@ -33,8 +35,8 @@ export const MobileBottomToolbar: React.FC<MobileBottomToolbarProps> = ({
         alignItems: 'center',
         justifyContent: 'space-around',
         zIndex: 250,
-        paddingLeft: '6px',
-        paddingRight: '6px'
+        paddingLeft: '4px',
+        paddingRight: '4px'
       }}
     >
       {/* 1. Generate */}
@@ -44,15 +46,16 @@ export const MobileBottomToolbar: React.FC<MobileBottomToolbarProps> = ({
         style={{
           flex: 1,
           height: '48px',
-          minWidth: '44px',
+          minWidth: '40px',
           flexDirection: 'column',
           gap: '2px',
-          padding: '4px',
+          padding: '2px',
           color: 'var(--color-primary-dark)'
         }}
+        title="Auto Generate ER Diagram"
       >
         <Sparkles size={18} color="#4CAF50" />
-        <span style={{ fontSize: '11px', fontWeight: 700 }}>Generate</span>
+        <span style={{ fontSize: '10.5px', fontWeight: 700 }}>Generate</span>
       </button>
 
       {/* 2. Add Entity */}
@@ -62,15 +65,16 @@ export const MobileBottomToolbar: React.FC<MobileBottomToolbarProps> = ({
         style={{
           flex: 1,
           height: '48px',
-          minWidth: '44px',
+          minWidth: '40px',
           flexDirection: 'column',
           gap: '2px',
-          padding: '4px',
+          padding: '2px',
           color: 'var(--color-text-main)'
         }}
+        title="Add Entity"
       >
         <Plus size={18} color="#4CAF50" />
-        <span style={{ fontSize: '11px', fontWeight: 700 }}>+ Entity</span>
+        <span style={{ fontSize: '10.5px', fontWeight: 700 }}>+ Entity</span>
       </button>
 
       {/* 3. Connect (Diamond) */}
@@ -81,34 +85,35 @@ export const MobileBottomToolbar: React.FC<MobileBottomToolbarProps> = ({
         style={{
           flex: 1,
           height: '48px',
-          minWidth: '44px',
+          minWidth: '40px',
           flexDirection: 'column',
           gap: '2px',
-          padding: '4px',
+          padding: '2px',
           color: entityCount >= 2 ? 'var(--color-text-main)' : 'var(--color-text-muted)'
         }}
+        title="Connect Entities"
       >
         <GitCommit size={18} color={entityCount >= 2 ? '#4CAF50' : '#a0b3a2'} />
-        <span style={{ fontSize: '11px', fontWeight: 700 }}>Connect</span>
+        <span style={{ fontSize: '10.5px', fontWeight: 700 }}>Connect</span>
       </button>
 
-      {/* 4. Auto Layout */}
+      {/* 4. SQL Tools */}
       <button
-        onClick={onAutoLayout}
-        disabled={entityCount === 0}
+        onClick={onOpenSql}
         className="btn btn-ghost"
         style={{
           flex: 1,
           height: '48px',
-          minWidth: '44px',
+          minWidth: '40px',
           flexDirection: 'column',
           gap: '2px',
-          padding: '4px',
-          color: entityCount > 0 ? 'var(--color-text-main)' : 'var(--color-text-muted)'
+          padding: '2px',
+          color: 'var(--color-text-main)'
         }}
+        title="SQL Tools: Import SQL or Export to SQL"
       >
-        <LayoutGrid size={18} color={entityCount > 0 ? '#4CAF50' : '#a0b3a2'} />
-        <span style={{ fontSize: '11px', fontWeight: 700 }}>Layout</span>
+        <Database size={18} color="#4CAF50" />
+        <span style={{ fontSize: '10.5px', fontWeight: 700 }}>SQL</span>
       </button>
 
       {/* 5. Download */}
@@ -119,15 +124,16 @@ export const MobileBottomToolbar: React.FC<MobileBottomToolbarProps> = ({
         style={{
           flex: 1,
           height: '48px',
-          minWidth: '44px',
+          minWidth: '40px',
           flexDirection: 'column',
           gap: '2px',
-          padding: '4px',
+          padding: '2px',
           color: entityCount > 0 ? 'var(--color-primary-dark)' : 'var(--color-text-muted)'
         }}
+        title="Download Diagram"
       >
         <Download size={18} color={entityCount > 0 ? '#4CAF50' : '#a0b3a2'} />
-        <span style={{ fontSize: '11px', fontWeight: 700 }}>Download</span>
+        <span style={{ fontSize: '10.5px', fontWeight: 700 }}>Export</span>
       </button>
     </nav>
   );

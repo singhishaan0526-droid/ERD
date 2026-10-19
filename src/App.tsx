@@ -7,11 +7,20 @@ import { HelpModal } from './components/HelpModal';
 import { MobileBottomSheet, BottomSheetMode } from './components/MobileBottomSheet';
 import { MobileBottomToolbar } from './components/MobileBottomToolbar';
 import { MobileImagePreviewModal } from './components/MobileImagePreviewModal';
+import { LandingPage } from './components/LandingPage';
+import { SqlToErdModal } from './components/SqlToErdModal';
+import { ErdToSqlModal } from './components/ErdToSqlModal';
+import { ImportExportModal } from './components/ImportExportModal';
+import { MobileSqlMenuModal } from './components/MobileSqlMenuModal';
 import { convertApiToModel, autoLayoutER, calculateAttributeOffset } from './utils/layout';
 import { downloadPng, downloadSvg } from './utils/export';
+import { getPredefinedTemplate } from './utils/templates';
 
 export const App: React.FC = () => {
-  // Empty canvas on initial load (Requirement F2: Canvas is empty on first load; no sample data anywhere)
+  // Main view mode: 'landing' or 'studio'
+  const [viewMode, setViewMode] = useState<'landing' | 'studio'>('landing');
+
+  // Canvas Entities & Relationships
   const [entities, setEntities] = useState<Entity[]>([]);
   const [relationships, setRelationships] = useState<Relationship[]>([]);
 
@@ -25,9 +34,15 @@ export const App: React.FC = () => {
   const [bottomSheetMode, setBottomSheetMode] = useState<BottomSheetMode>('none');
   const [mobilePreviewDataUrl, setMobilePreviewDataUrl] = useState<string | null>(null);
 
-  // Modals & UI status
+  // Modals status
   const [isDownloading, setIsDownloading] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isSqlToErdOpen, setIsSqlToErdOpen] = useState(false);
+  const [isErdToSqlOpen, setIsErdToSqlOpen] = useState(false);
+  const [isImportExportOpen, setIsImportExportOpen] = useState(false);
+  const [importExportTab, setImportExportTab] = useState<'import' | 'export'>('import');
+  const [isMobileSqlMenuOpen, setIsMobileSqlMenuOpen] = useState(false);
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -329,6 +344,25 @@ export const App: React.FC = () => {
     }
   };
 
+  // --- Template & Model Loading ---
+  const handleLoadTemplate = (name: string) => {
+    const tmpl = getPredefinedTemplate(name);
+    if (tmpl) {
+      setEntities(tmpl.entities);
+      setRelationships(tmpl.relationships);
+      setSelectedEntityId(null);
+      setViewMode('studio');
+      showToast(`Loaded ${name} template (${tmpl.entities.length} entities)!`);
+    }
+  };
+
+  const handleImportModel = (importedEntities: Entity[], importedRelationships: Relationship[]) => {
+    setEntities(importedEntities);
+    setRelationships(importedRelationships);
+    setSelectedEntityId(null);
+    setViewMode('studio');
+  };
+
   // Selected item lookup
   const selectedEntity = entities.find(e => e.id === selectedEntityId) || null;
   const selectedAttribute = selectedEntity?.attributes.find(a => a.id === selectedAttributeId) || null;
@@ -336,115 +370,197 @@ export const App: React.FC = () => {
 
   return (
     <div className="app-layout">
-      {/* Top Navigation Bar */}
-      <Header
-        entityCount={entities.length}
-        relationshipCount={relationships.length}
-        onAutoLayout={handleAutoLayout}
-        onClearCanvas={handleClearCanvas}
-        onDownloadPng={handleDownloadPng}
-        onDownloadSvg={handleDownloadSvg}
-        isDownloading={isDownloading}
-        onOpenHelp={() => setIsHelpOpen(true)}
-      />
-
-      {/* Main workspace */}
-      <main className="app-main">
-        {/* Left Control Sidebar (Desktop only) */}
-        <div className="desktop-only" style={{ height: '100%', display: 'flex' }}>
-          <Sidebar
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            entities={entities}
-            relationships={relationships}
-            selectedEntityId={selectedEntityId}
-            onSelectEntity={setSelectedEntityId}
-            onGenerated={handleGenerated}
-            onAddEntity={handleAddEntity}
-            onUpdateEntityName={handleUpdateEntityName}
-            onDeleteEntity={handleDeleteEntity}
-            onAddAttribute={(entityId, name, isPk) => handleAddAttribute(entityId, name, isPk ? 'primary' : 'normal')}
-            onToggleAttributePK={handleToggleAttributePK}
-            onDeleteAttribute={handleDeleteAttribute}
-            onAddRelationship={handleAddRelationship}
-            onUpdateRelationship={handleUpdateRelationship}
-            onDeleteRelationship={handleDeleteRelationship}
-          />
-        </div>
-
-        {/* Right Canvas Area (Takes 100% full screen on mobile) */}
-        <Canvas
-          entities={entities}
-          relationships={relationships}
-          selectedEntityId={selectedEntityId}
-          onSelectEntity={(id) => {
-            setSelectedEntityId(id);
-            if (id) {
-              setSelectedAttributeId(null);
-              setSelectedRelationshipId(null);
-            }
-          }}
-          onUpdateEntityPosition={handleUpdateEntityPosition}
-          onUpdateEntityName={handleUpdateEntityName}
-          onToggleEntityWeak={handleToggleEntityWeak}
-          onDuplicateEntity={handleDuplicateEntity}
-          onDeleteEntity={handleDeleteEntity}
-          onAddAttribute={handleAddAttribute}
-          onUpdateAttributeName={handleUpdateAttributeName}
-          onUpdateAttributeType={handleUpdateAttributeType}
-          onDeleteAttribute={handleDeleteAttribute}
-          onUpdateAttributeOffset={handleUpdateAttributeOffset}
-          onUpdateRelationshipName={handleUpdateRelationshipName}
-          onUpdateRelationshipCardinality={handleUpdateRelationshipCardinality}
-          onToggleRelationshipIdentifying={handleToggleRelationshipIdentifying}
-          onDeleteRelationship={handleDeleteRelationship}
-          onUpdateRelationshipPosition={handleUpdateRelationshipPosition}
-          onOpenBottomSheet={(mode) => setBottomSheetMode(mode)}
-          onSwitchTab={(tab) => {
+      {/* 1. Landing Page View */}
+      {viewMode === 'landing' ? (
+        <LandingPage
+          onOpenStudio={() => setViewMode('studio')}
+          onOpenAutoGenerate={() => {
+            setViewMode('studio');
+            setActiveTab('generate');
             if (window.innerWidth < 900) {
-              setBottomSheetMode(tab === 'generate' ? 'generate' : 'add-entity');
-            } else {
-              setActiveTab(tab);
+              setBottomSheetMode('generate');
             }
           }}
-          svgRef={svgRef}
+          onOpenSqlToErd={() => {
+            setViewMode('studio');
+            setIsSqlToErdOpen(true);
+          }}
+          onOpenErdToSql={() => {
+            setViewMode('studio');
+            setIsErdToSqlOpen(true);
+          }}
+          onOpenImport={() => {
+            setViewMode('studio');
+            setImportExportTab('import');
+            setIsImportExportOpen(true);
+          }}
+          onLoadTemplate={handleLoadTemplate}
         />
-      </main>
+      ) : (
+        /* 2. Visual Studio & Canvas View */
+        <>
+          {/* Top Navigation Bar with safe non-cutting Download dropdown */}
+          <Header
+            entityCount={entities.length}
+            relationshipCount={relationships.length}
+            onAutoLayout={handleAutoLayout}
+            onClearCanvas={handleClearCanvas}
+            onDownloadPng={handleDownloadPng}
+            onDownloadSvg={handleDownloadSvg}
+            isDownloading={isDownloading}
+            onOpenHelp={() => setIsHelpOpen(true)}
+            onOpenLanding={() => setViewMode('landing')}
+            onOpenSqlToErd={() => setIsSqlToErdOpen(true)}
+            onOpenErdToSql={() => setIsErdToSqlOpen(true)}
+            onOpenImportExport={() => {
+              setImportExportTab('import');
+              setIsImportExportOpen(true);
+            }}
+          />
 
-      {/* Mobile Bottom Toolbar (Sticky on phones & tablets) */}
-      <MobileBottomToolbar
-        onOpenMode={(mode) => setBottomSheetMode(mode)}
-        onAutoLayout={handleAutoLayout}
-        onOpenDownload={handleDownloadPng}
+          {/* Main workspace */}
+          <main className="app-main">
+            {/* Left Control Sidebar (Desktop only) */}
+            <div className="desktop-only" style={{ height: '100%', display: 'flex' }}>
+              <Sidebar
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                entities={entities}
+                relationships={relationships}
+                selectedEntityId={selectedEntityId}
+                onSelectEntity={setSelectedEntityId}
+                onGenerated={handleGenerated}
+                onAddEntity={handleAddEntity}
+                onUpdateEntityName={handleUpdateEntityName}
+                onDeleteEntity={handleDeleteEntity}
+                onAddAttribute={(entityId, name, isPk) => handleAddAttribute(entityId, name, isPk ? 'primary' : 'normal')}
+                onToggleAttributePK={handleToggleAttributePK}
+                onDeleteAttribute={handleDeleteAttribute}
+                onAddRelationship={handleAddRelationship}
+                onUpdateRelationship={handleUpdateRelationship}
+                onDeleteRelationship={handleDeleteRelationship}
+              />
+            </div>
+
+            {/* Right Canvas Area (Takes 100% full screen on mobile) */}
+            <Canvas
+              entities={entities}
+              relationships={relationships}
+              selectedEntityId={selectedEntityId}
+              onSelectEntity={(id) => {
+                setSelectedEntityId(id);
+                if (id) {
+                  setSelectedAttributeId(null);
+                  setSelectedRelationshipId(null);
+                }
+              }}
+              onUpdateEntityPosition={handleUpdateEntityPosition}
+              onUpdateEntityName={handleUpdateEntityName}
+              onToggleEntityWeak={handleToggleEntityWeak}
+              onDuplicateEntity={handleDuplicateEntity}
+              onDeleteEntity={handleDeleteEntity}
+              onAddAttribute={handleAddAttribute}
+              onUpdateAttributeName={handleUpdateAttributeName}
+              onUpdateAttributeType={handleUpdateAttributeType}
+              onDeleteAttribute={handleDeleteAttribute}
+              onUpdateAttributeOffset={handleUpdateAttributeOffset}
+              onUpdateRelationshipName={handleUpdateRelationshipName}
+              onUpdateRelationshipCardinality={handleUpdateRelationshipCardinality}
+              onToggleRelationshipIdentifying={handleToggleRelationshipIdentifying}
+              onDeleteRelationship={handleDeleteRelationship}
+              onUpdateRelationshipPosition={handleUpdateRelationshipPosition}
+              onOpenBottomSheet={(mode) => setBottomSheetMode(mode)}
+              onSwitchTab={(tab) => {
+                if (window.innerWidth < 900) {
+                  setBottomSheetMode(tab === 'generate' ? 'generate' : 'add-entity');
+                } else {
+                  setActiveTab(tab);
+                }
+              }}
+              svgRef={svgRef}
+            />
+          </main>
+
+          {/* Mobile Bottom Toolbar (Sticky on phones & tablets) */}
+          <MobileBottomToolbar
+            onOpenMode={(mode) => setBottomSheetMode(mode)}
+            onAutoLayout={handleAutoLayout}
+            onOpenDownload={handleDownloadPng}
+            onOpenSql={() => setIsMobileSqlMenuOpen(true)}
+            entityCount={entities.length}
+          />
+
+          {/* Mobile Slide-Up Bottom Sheet for CRUD */}
+          <MobileBottomSheet
+            mode={bottomSheetMode}
+            onClose={() => setBottomSheetMode('none')}
+            selectedEntity={selectedEntity}
+            selectedAttribute={selectedAttribute}
+            selectedRelationship={selectedRelationship}
+            entities={entities}
+            onUpdateEntityName={handleUpdateEntityName}
+            onToggleEntityWeak={handleToggleEntityWeak}
+            onDuplicateEntity={handleDuplicateEntity}
+            onDeleteEntity={handleDeleteEntity}
+            onAddAttribute={handleAddAttribute}
+            onUpdateAttributeName={handleUpdateAttributeName}
+            onUpdateAttributeType={handleUpdateAttributeType}
+            onDeleteAttribute={handleDeleteAttribute}
+            onUpdateRelationshipName={handleUpdateRelationshipName}
+            onUpdateRelationshipCardinality={handleUpdateRelationshipCardinality}
+            onToggleRelationshipIdentifying={handleToggleRelationshipIdentifying}
+            onDeleteRelationship={handleDeleteRelationship}
+            onAddEntity={handleAddEntity}
+            onAddRelationship={handleAddRelationship}
+            onGenerated={handleGenerated}
+          />
+        </>
+      )}
+
+      {/* SQL Code into ER Diagram Modal */}
+      <SqlToErdModal
+        isOpen={isSqlToErdOpen}
+        onClose={() => setIsSqlToErdOpen(false)}
+        onImportModel={(newEnts, newRels) => {
+          handleImportModel(newEnts, newRels);
+          showToast(`Generated ER diagram from SQL (${newEnts.length} entities)!`);
+        }}
+      />
+
+      {/* ER Diagram into SQL Code Modal with Easy Copy */}
+      <ErdToSqlModal
+        isOpen={isErdToSqlOpen}
+        onClose={() => setIsErdToSqlOpen(false)}
+        entities={entities}
+        relationships={relationships}
+        onToast={showToast}
+      />
+
+      {/* Import / Export JSON Project Modal */}
+      <ImportExportModal
+        isOpen={isImportExportOpen}
+        onClose={() => setIsImportExportOpen(false)}
+        entities={entities}
+        relationships={relationships}
+        onImportModel={handleImportModel}
+        onToast={showToast}
+        defaultTab={importExportTab}
+      />
+
+      {/* Mobile SQL Menu Modal */}
+      <MobileSqlMenuModal
+        isOpen={isMobileSqlMenuOpen}
+        onClose={() => setIsMobileSqlMenuOpen(false)}
+        onSelectSqlToErd={() => setIsSqlToErdOpen(true)}
+        onSelectErdToSql={() => setIsErdToSqlOpen(true)}
+        onSelectImportExport={() => {
+          setImportExportTab('import');
+          setIsImportExportOpen(true);
+        }}
         entityCount={entities.length}
       />
 
-      {/* Mobile Slide-Up Bottom Sheet */}
-      <MobileBottomSheet
-        mode={bottomSheetMode}
-        onClose={() => setBottomSheetMode('none')}
-        selectedEntity={selectedEntity}
-        selectedAttribute={selectedAttribute}
-        selectedRelationship={selectedRelationship}
-        entities={entities}
-        onUpdateEntityName={handleUpdateEntityName}
-        onToggleEntityWeak={handleToggleEntityWeak}
-        onDuplicateEntity={handleDuplicateEntity}
-        onDeleteEntity={handleDeleteEntity}
-        onAddAttribute={handleAddAttribute}
-        onUpdateAttributeName={handleUpdateAttributeName}
-        onUpdateAttributeType={handleUpdateAttributeType}
-        onDeleteAttribute={handleDeleteAttribute}
-        onUpdateRelationshipName={handleUpdateRelationshipName}
-        onUpdateRelationshipCardinality={handleUpdateRelationshipCardinality}
-        onToggleRelationshipIdentifying={handleToggleRelationshipIdentifying}
-        onDeleteRelationship={handleDeleteRelationship}
-        onAddEntity={handleAddEntity}
-        onAddRelationship={handleAddRelationship}
-        onGenerated={handleGenerated}
-      />
-
-      {/* Mobile Image Preview Modal (Fallback for iOS Safari Save to Photos) */}
+      {/* Mobile Image Preview Modal (iOS Safari fallback) */}
       <MobileImagePreviewModal
         dataUrl={mobilePreviewDataUrl}
         onClose={() => setMobilePreviewDataUrl(null)}
