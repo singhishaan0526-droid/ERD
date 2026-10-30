@@ -103,14 +103,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         picture: avatarUrl
       };
 
-      const res = await fetch('/api/auth/google', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(googleUser)
-      });
+      try {
+        const res = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(googleUser)
+        });
 
-      if (!res.ok) {
-        throw new Error('Failed to synchronize user record with Neon database');
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          console.warn('Neon sync note:', errorData.error || res.statusText);
+        }
+      } catch (syncErr) {
+        console.warn('Neon database background sync warning:', syncErr);
       }
 
       onLogin(googleUser);
