@@ -9,12 +9,21 @@ import {
   Code2,
   Database,
   FileJson,
-  Sparkles
+  Sparkles,
+  Cloud,
+  LogOut,
+  User,
+  UserX,
+  ShieldAlert
 } from 'lucide-react';
+import { AuthUser } from '../types';
 
 interface HeaderProps {
   entityCount: number;
   relationshipCount: number;
+  currentUser: AuthUser | null;
+  onLogout: () => void;
+  onOpenLogin: () => void;
   onAutoLayout: () => void;
   onClearCanvas: () => void;
   onDownloadPng: () => void;
@@ -25,11 +34,15 @@ interface HeaderProps {
   onOpenSqlToErd: () => void;
   onOpenErdToSql: () => void;
   onOpenImportExport: () => void;
+  onOpenNeonCloud: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   entityCount,
   relationshipCount,
+  currentUser,
+  onLogout,
+  onOpenLogin,
   onAutoLayout,
   onClearCanvas,
   onDownloadPng,
@@ -39,15 +52,21 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenLanding,
   onOpenSqlToErd,
   onOpenErdToSql,
-  onOpenImportExport
+  onOpenImportExport,
+  onOpenNeonCloud
 }) => {
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDownloadMenuOpen(false);
+      }
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -202,6 +221,35 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <FileJson size={15} />
           <span>JSON</span>
+        </button>
+
+        {/* Neon Cloud Database Button */}
+        <button
+          onClick={onOpenNeonCloud}
+          className="btn btn-secondary desktop-only"
+          title="Save & Load diagrams from Neon PostgreSQL"
+          style={{
+            minHeight: '38px',
+            padding: '6px 11px',
+            fontSize: '13px',
+            backgroundColor: '#f0fdf4',
+            borderColor: '#86efac',
+            color: '#166534',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          <span style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: '#00e599',
+            boxShadow: '0 0 6px #00e599',
+            display: 'inline-block'
+          }} />
+          <Cloud size={15} color="#00a368" />
+          <span style={{ fontWeight: 600 }}>Neon Cloud</span>
         </button>
 
         {/* Auto-Layout (Desktop) */}
@@ -402,6 +450,228 @@ export const Header: React.FC<HeaderProps> = ({
                 <FileJson size={15} color="#4CAF50" style={{ flexShrink: 0 }} />
                 <span style={{ marginLeft: '8px', fontWeight: 600 }}>Export as JSON Project</span>
               </button>
+            </div>
+          )}
+        </div>
+
+        {/* User Account / Auth Status Dropdown */}
+        <div style={{ position: 'relative', flexShrink: 0 }} ref={userDropdownRef}>
+          {currentUser ? (
+            <button
+              onClick={() => setUserMenuOpen(prev => !prev)}
+              style={{
+                minHeight: '38px',
+                height: '38px',
+                padding: '4px 10px',
+                borderRadius: '8px',
+                border: currentUser.type === 'google' ? '1.5px solid #86efac' : '1.5px solid #fecaca',
+                backgroundColor: currentUser.type === 'google' ? '#f0fdf4' : '#fef2f2',
+                color: currentUser.type === 'google' ? '#166534' : '#991b1b',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                fontSize: '12.5px',
+                fontWeight: 600
+              }}
+              title={currentUser.type === 'google' ? `Logged in as ${currentUser.name} (Saved to Neon)` : 'Guest Mode (Temporary - auto-deleted)'}
+            >
+              {currentUser.type === 'google' ? (
+                <>
+                  {currentUser.picture ? (
+                    <img
+                      src={currentUser.picture}
+                      alt={currentUser.name}
+                      style={{ width: '22px', height: '22px', borderRadius: '50%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '50%',
+                      backgroundColor: '#00e599',
+                      color: '#00261a',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '11px',
+                      fontWeight: 800
+                    }}>
+                      {currentUser.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="desktop-only" style={{ maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {currentUser.name.split(' ')[0]}
+                  </span>
+                  <span style={{
+                    width: '7px',
+                    height: '7px',
+                    borderRadius: '50%',
+                    backgroundColor: '#16a34a',
+                    boxShadow: '0 0 6px #22c55e'
+                  }} />
+                </>
+              ) : (
+                <>
+                  <UserX size={15} color="#dc2626" />
+                  <span className="desktop-only" style={{ color: '#b91c1c' }}>Guest Mode</span>
+                  <span style={{
+                    fontSize: '9.5px',
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                    backgroundColor: '#fee2e2',
+                    color: '#dc2626',
+                    fontWeight: 700
+                  }}>
+                    EPHEMERAL
+                  </span>
+                </>
+              )}
+              <ChevronDown size={13} style={{ opacity: 0.7 }} />
+            </button>
+          ) : (
+            <button
+              onClick={onOpenLogin}
+              className="btn btn-secondary"
+              style={{
+                minHeight: '38px',
+                height: '38px',
+                padding: '6px 12px',
+                fontSize: '12.5px',
+                fontWeight: 600
+              }}
+            >
+              <User size={15} />
+              <span>Sign In</span>
+            </button>
+          )}
+
+          {/* User Profile Dropdown Menu */}
+          {userMenuOpen && currentUser && (
+            <div
+              className="animate-fade-in"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                width: '260px',
+                maxWidth: 'calc(100vw - 20px)',
+                backgroundColor: '#ffffff',
+                border: '1.5px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-lg)',
+                padding: '10px',
+                zIndex: 360,
+                boxSizing: 'border-box'
+              }}
+            >
+              {/* Profile Details */}
+              <div style={{ padding: '4px 6px 10px', borderBottom: '1px solid var(--color-border)' }}>
+                <div style={{ fontWeight: 700, fontSize: '13.5px', color: '#0f172a' }}>
+                  {currentUser.name}
+                </div>
+                {currentUser.type === 'google' ? (
+                  <>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                      {currentUser.email}
+                    </div>
+                    <div style={{
+                      marginTop: '8px',
+                      fontSize: '11px',
+                      color: '#166534',
+                      backgroundColor: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}>
+                      <Cloud size={12} color="#16a34a" />
+                      <span>Past records saved in Neon Postgres</span>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{
+                    marginTop: '6px',
+                    fontSize: '11.5px',
+                    color: '#991b1b',
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    padding: '6px 8px',
+                    borderRadius: '6px',
+                    lineHeight: 1.4
+                  }}>
+                    <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+                      <ShieldAlert size={13} />
+                      <span>Temporary Guest Mode</span>
+                    </div>
+                    All diagrams are deleted when you leave or log out.
+                  </div>
+                )}
+              </div>
+
+              {/* Action buttons inside user menu */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px' }}>
+                {currentUser.type === 'guest' ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        onOpenLogin();
+                      }}
+                      className="btn btn-secondary"
+                      style={{
+                        width: '100%',
+                        justifyContent: 'center',
+                        fontSize: '12px',
+                        padding: '8px',
+                        borderColor: '#86efac',
+                        backgroundColor: '#f0fdf4',
+                        color: '#166534'
+                      }}
+                    >
+                      <Sparkles size={14} color="#16a34a" />
+                      <span>Upgrade to Google (Save Work)</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        onLogout();
+                      }}
+                      className="btn btn-danger-ghost"
+                      style={{
+                        width: '100%',
+                        justifyContent: 'center',
+                        fontSize: '12px',
+                        padding: '8px',
+                        color: '#dc2626'
+                      }}
+                    >
+                      <Trash2 size={14} />
+                      <span>Delete All & Exit Guest</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      onLogout();
+                    }}
+                    className="btn btn-ghost"
+                    style={{
+                      width: '100%',
+                      justifyContent: 'flex-start',
+                      fontSize: '12.5px',
+                      padding: '8px 10px',
+                      color: '#475569'
+                    }}
+                  >
+                    <LogOut size={14} />
+                    <span>Sign Out</span>
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>

@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Entity, Relationship, Cardinality, ActiveTab, RawApiResponse, AttributeType } from './types';
+import React, { useState, useRef, useEffect } from 'react';
+import { Entity, Relationship, Cardinality, ActiveTab, RawApiResponse, AttributeType, AuthUser } from './types';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
@@ -8,17 +8,40 @@ import { MobileBottomSheet, BottomSheetMode } from './components/MobileBottomShe
 import { MobileBottomToolbar } from './components/MobileBottomToolbar';
 import { MobileImagePreviewModal } from './components/MobileImagePreviewModal';
 import { LandingPage } from './components/LandingPage';
+import { LoginPage } from './components/LoginPage';
 import { SqlToErdModal } from './components/SqlToErdModal';
 import { ErdToSqlModal } from './components/ErdToSqlModal';
 import { ImportExportModal } from './components/ImportExportModal';
 import { MobileSqlMenuModal } from './components/MobileSqlMenuModal';
+import { NeonModal } from './components/NeonModal';
 import { convertApiToModel, autoLayoutER, calculateAttributeOffset } from './utils/layout';
 import { downloadPng, downloadSvg } from './utils/export';
 import { getPredefinedTemplate } from './utils/templates';
 
 export const App: React.FC = () => {
-  // Main view mode: 'landing' or 'studio'
-  const [viewMode, setViewMode] = useState<'landing' | 'studio'>('landing');
+  // Authentication user state: Google or Guest
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    try {
+      const savedGoogle = localStorage.getItem('erd_auth_user');
+      if (savedGoogle) return JSON.parse(savedGoogle);
+      const savedGuest = sessionStorage.getItem('erd_guest_session');
+      if (savedGuest) return JSON.parse(savedGuest);
+    } catch (e) {
+      console.error('Error loading stored user:', e);
+    }
+    return null;
+  });
+
+  // Main view mode: 'login' | 'landing' | 'studio'
+  const [viewMode, setViewMode] = useState<'login' | 'landing' | 'studio'>(() => {
+    try {
+      const savedGoogle = localStorage.getItem('erd_auth_user');
+      if (savedGoogle) return 'studio';
+      const savedGuest = sessionStorage.getItem('erd_guest_session');
+      if (savedGuest) return 'studio';
+    } catch (e) {}
+    return 'login';
+  });
 
   // Canvas Entities & Relationships
   const [entities, setEntities] = useState<Entity[]>([]);
@@ -40,6 +63,7 @@ export const App: React.FC = () => {
   const [isSqlToErdOpen, setIsSqlToErdOpen] = useState(false);
   const [isErdToSqlOpen, setIsErdToSqlOpen] = useState(false);
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
+  const [isNeonModalOpen, setIsNeonModalOpen] = useState(false);
   const [importExportTab, setImportExportTab] = useState<'import' | 'export'>('import');
   const [isMobileSqlMenuOpen, setIsMobileSqlMenuOpen] = useState(false);
 
@@ -50,6 +74,51 @@ export const App: React.FC = () => {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3200);
+  };
+
+  // --- Auth Handlers ---
+  const handleLogin = (user: AuthUser) => {
+    setCurrentUser(user);
+    if (user.type === 'google') {
+      localStorage.setItem('erd_auth_user', JSON.stringify(user));
+      showToast(`Welcome, ${user.name}! Cloud sync active (saving past records).`);
+    } else {
+      sessionStorage.setItem('erd_guest_session', JSON.stringify(user));
+      showToast('Guest mode started. Temporary session will be deleted on exit.');
+    }
+    setViewMode('studio');
+  };
+
+  const handleLogout = async () => {
+    if (currentUser?.type === 'guest') {
+      // WIPE EVERYTHING for guest
+      try {
+        await fetch('/api/auth/guest-wipe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guestId: currentUser.id })
+        });
+      } catch (err) {
+        console.error('Failed to wipe guest records on server:', err);
+      }
+
+      setEntities([]);
+      setRelationships([]);
+      setSelectedEntityId(null);
+      setSelectedAttributeId(null);
+      setSelectedRelationshipId(null);
+      sessionStorage.removeItem('erd_guest_session');
+      localStorage.removeItem('erd_auth_user');
+      setCurrentUser(null);
+      setViewMode('login');
+      showToast('Guest session ended. All temporary data has been deleted.');
+    } else {
+      // Google logout: past records remain safely in Neon Postgres
+      localStorage.removeItem('erd_auth_user');
+      setCurrentUser(null);
+      setViewMode('login');
+      showToast('Signed out of Google account. Your diagrams remain saved in Neon.');
+    }
   };
 
   // --- Auto Generate Handler ---
@@ -370,8 +439,11 @@ export const App: React.FC = () => {
 
   return (
     <div className="app-layout">
-      {/* 1. Landing Page View */}
-      {viewMode === 'landing' ? (
+      {/* 1. Dedicated Login Page */}
+      {viewMode === 'login' ? (
+        <LoginPage onLogin={handleLogin} />
+      ) : viewMode === 'landing' ? (
+        /* 2. Landing Page View */
         <LandingPage
           onOpenStudio={() => setViewMode('studio')}
           onOpenAutoGenerate={() => {
@@ -397,12 +469,77 @@ export const App: React.FC = () => {
           onLoadTemplate={handleLoadTemplate}
         />
       ) : (
-        /* 2. Visual Studio & Canvas View */
+        /* 3. Visual Studio & Canvas View */
         <>
-          {/* Top Navigation Bar with safe non-cutting Download dropdown */}
+          {/* Guest Warning Notice Strip */}
+          {currentUser?.type === 'guest' && (
+            <div style={{
+              backgroundColor: '#fffbeb',
+              borderBottom: '1px solid #fde68a',
+              padding: '6px 16px',
+              fontSize: '12px',
+              color: '#92400e',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              zIndex: 250
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  backgroundColor: '#f59e0b',
+                  color: '#ffffff',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  padding: '1px 6px',
+                  borderRadius: '4px'
+                }}>
+                  GUEST SESSION
+                </span>
+                <span>
+                  You are in temporary guest mode. All diagrams and session records will be <strong>permanently deleted</strong> upon exit.
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  onClick={() => setViewMode('login')}
+                  style={{
+                    backgroundColor: '#10b981',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '2px 8px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Save with Google
+                </button>
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#b45309',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Delete & Exit
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Top Navigation Bar */}
           <Header
             entityCount={entities.length}
             relationshipCount={relationships.length}
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            onOpenLogin={() => setViewMode('login')}
             onAutoLayout={handleAutoLayout}
             onClearCanvas={handleClearCanvas}
             onDownloadPng={handleDownloadPng}
@@ -416,6 +553,7 @@ export const App: React.FC = () => {
               setImportExportTab('import');
               setIsImportExportOpen(true);
             }}
+            onOpenNeonCloud={() => setIsNeonModalOpen(true)}
           />
 
           {/* Main workspace */}
@@ -545,6 +683,21 @@ export const App: React.FC = () => {
         onImportModel={handleImportModel}
         onToast={showToast}
         defaultTab={importExportTab}
+      />
+
+      {/* Neon PostgreSQL Cloud Modal */}
+      <NeonModal
+        isOpen={isNeonModalOpen}
+        onClose={() => setIsNeonModalOpen(false)}
+        currentUser={currentUser}
+        entities={entities}
+        relationships={relationships}
+        onLoadDiagram={(newEnts, newRels) => {
+          setEntities(newEnts);
+          setRelationships(newRels);
+          setSelectedEntityId(null);
+        }}
+        onToast={showToast}
       />
 
       {/* Mobile SQL Menu Modal */}

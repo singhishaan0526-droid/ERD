@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import apiRouter from './server/api.js';
+import { initDb } from './server/db.js';
 
 dotenv.config();
 
@@ -14,7 +15,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// API routes
+// API routes (including AI generator and Neon Postgres persistence)
 app.use('/api', apiRouter);
 
 // Disable caching so browser always loads latest build
@@ -32,6 +33,11 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`ER Diagram Maker server running on http://localhost:${PORT}`);
+  try {
+    await initDb();
+  } catch (err) {
+    console.error('Error connecting to Neon database:', err.message);
+  }
 });

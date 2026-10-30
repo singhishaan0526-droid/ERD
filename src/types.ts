@@ -79,3 +79,20 @@ export interface RawApiResponse {
 }
 
 export type ActiveTab = 'generate' | 'build';
+
+export type GoogleUser = {
+  type: 'google';
+  id: string;
+  email: string;
+  name: string;
+  picture?: string;
+};
+
+export type GuestUser = {
+  type: 'guest';
+  id: string;
+  name: string;
+  createdAt?: string;
+};
+
+export type AuthUser = GoogleUser | GuestUser;
