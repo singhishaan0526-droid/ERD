@@ -103,6 +103,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         picture: avatarUrl
       };
 
+      let authenticatedUser: GoogleUser = googleUser;
       try {
         const res = await fetch('/api/auth/google', {
           method: 'POST',
@@ -110,7 +111,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           body: JSON.stringify(googleUser)
         });
 
-        if (!res.ok) {
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.user) {
+            authenticatedUser = {
+              type: 'google',
+              id: data.user.id || googleUser.id,
+              email: data.user.email || googleUser.email,
+              name: data.user.name || googleUser.name,
+              picture: data.user.picture || googleUser.picture
+            };
+          }
+        } else {
           const errorData = await res.json().catch(() => ({}));
           console.warn('Neon sync note:', errorData.error || res.statusText);
         }
@@ -118,17 +130,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         console.warn('Neon database background sync warning:', syncErr);
       }
 
-      onLogin(googleUser);
+      onLogin(authenticatedUser);
     } catch (err: any) {
       setAuthError(err.message || 'Authentication error');
     } finally {
       setIsAuthenticating(false);
     }
-  };
-
-  const handleQuickDemoGoogle = (email: string, name: string) => {
-    setGoogleEmail(email);
-    setGoogleName(name);
   };
 
   const handleGuestLogin = () => {
@@ -656,84 +663,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
             {/* Official Google Button container (rendered by GIS if available) */}
             <div id="google-official-btn" style={{ marginBottom: '14px', display: 'flex', justifyContent: 'center' }} />
-
-            {/* Quick 1-click accounts */}
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
-                Quick Choose Google Account:
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoGoogle('ishaan.singh@gmail.com', 'Ishaan Singh')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '8px 12px',
-                    borderRadius: 'var(--radius-md)',
-                    border: googleEmail === 'ishaan.singh@gmail.com' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
-                    backgroundColor: googleEmail === 'ishaan.singh@gmail.com' ? 'var(--color-primary-lightest)' : '#ffffff',
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--color-primary)',
-                    color: '#ffffff',
-                    fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px'
-                  }}>
-                    IS
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-main)' }}>Ishaan Singh</div>
-                    <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>ishaan.singh@gmail.com</div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoGoogle('dev.workspace@gmail.com', 'Database Architect')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '8px 12px',
-                    borderRadius: 'var(--radius-md)',
-                    border: googleEmail === 'dev.workspace@gmail.com' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
-                    backgroundColor: googleEmail === 'dev.workspace@gmail.com' ? 'var(--color-primary-lightest)' : '#ffffff',
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    backgroundColor: '#0284c7',
-                    color: '#ffffff',
-                    fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px'
-                  }}>
-                    DA
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-main)' }}>Database Architect</div>
-                    <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>dev.workspace@gmail.com</div>
-                  </div>
-                </button>
-              </div>
-            </div>
 
             {/* Custom Google account inputs */}
             <form onSubmit={handleCustomGoogleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

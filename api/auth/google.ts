@@ -34,10 +34,9 @@ export default async function handler(req: any, res: any) {
     const rows = await sql`
       INSERT INTO users (id, email, name, picture, provider, last_login)
       VALUES (${userId}, ${userEmail}, ${userName}, ${userPicture}, 'google', NOW())
-      ON CONFLICT (id) DO UPDATE SET
+      ON CONFLICT (email) DO UPDATE SET
         name = EXCLUDED.name,
-        email = EXCLUDED.email,
-        picture = EXCLUDED.picture,
+        picture = CASE WHEN EXCLUDED.picture <> '' THEN EXCLUDED.picture ELSE users.picture END,
         last_login = NOW()
       RETURNING id, email, name, picture, provider, created_at, last_login
     `;
