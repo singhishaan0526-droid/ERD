@@ -563,7 +563,12 @@ export const Header: React.FC<HeaderProps> = ({
               <ChevronDown size={13} style={{ opacity: 0.7 }} />
             </button>
           ) : (
-            <SignInButton mode="modal">
+            <SignInButton
+              mode="modal"
+              fallbackRedirectUrl="/studio"
+              signUpFallbackRedirectUrl="/studio"
+              forceRedirectUrl="/studio"
+            >
               <button
                 className="btn btn-secondary"
                 style={{

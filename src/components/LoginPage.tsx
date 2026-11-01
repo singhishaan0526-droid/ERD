@@ -287,7 +287,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenPrivacy, on
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <SignInButton mode="modal">
+              <SignInButton
+                mode="modal"
+                fallbackRedirectUrl="/studio"
+                signUpFallbackRedirectUrl="/studio"
+                forceRedirectUrl="/studio"
+              >
                 <button
                   className="btn btn-primary"
                   style={{
@@ -308,7 +313,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenPrivacy, on
                 </button>
               </SignInButton>
 
-              <SignUpButton mode="modal">
+              <SignUpButton
+                mode="modal"
+                fallbackRedirectUrl="/studio"
+                signInFallbackRedirectUrl="/studio"
+                forceRedirectUrl="/studio"
+              >
                 <button
                   className="btn btn-ghost"
                   style={{

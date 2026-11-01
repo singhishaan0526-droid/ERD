@@ -31,7 +31,7 @@ function getInitialViewMode(): AppViewMode {
   const path = window.location.pathname.toLowerCase().replace(/\/+$/, '') || '/';
   if (path === '' || path === '/' || path === '/landing') return 'landing';
   if (path === '/studio') return 'studio';
-  if (path === '/login') return 'login';
+  if (path === '/login' || path.startsWith('/sign-in') || path.startsWith('/sign-up')) return 'login';
   if (path === '/privacy') return 'privacy';
   if (path === '/terms') return 'terms';
   return '404';
@@ -142,8 +142,8 @@ export const App: React.FC = () => {
           name,
           picture: clerkUser.imageUrl
         });
-        if (viewMode === 'login') {
-          navigateTo('studio');
+        if (viewMode === 'login' || viewMode === '404' || window.location.pathname.includes('/sign-')) {
+          navigateTo('studio', true);
         }
         return;
       }

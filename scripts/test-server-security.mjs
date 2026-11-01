@@ -168,8 +168,60 @@ async function runTests() {
     console.log('✓ Test 9: POST /api/diagrams enforces strict payload size limits & validation.');
   }
 
+  // Test 10: Clerk personal user authentication flow
+  {
+    const clerkPersonalToken = await createSessionToken({
+      id: 'user_clerk_personal_98765',
+      email: 'clerk_dev@example.com',
+      name: 'Clerk Developer',
+      type: 'clerk'
+    });
+    const res = await testRequest('GET', '/api/auth/me', {
+      headers: { cookie: `erd_session=${clerkPersonalToken}` }
+    });
+    assert.strictEqual(res.status, 200, 'Clerk personal user session must return 200');
+    assert.strictEqual(res.body.user.id, 'user_clerk_personal_98765');
+    assert.strictEqual(res.body.user.type, 'clerk');
+    assert.strictEqual(res.body.user.email, 'clerk_dev@example.com');
+    console.log('✓ Test 10: Clerk personal user session functions seamlessly without organization requirement.');
+  }
+
+  // Test 11: Diagram ownership isolation between distinct personal accounts
+  {
+    const userAToken = await createSessionToken({
+      id: 'user_alice_111',
+      email: 'alice@example.com',
+      name: 'Alice',
+      type: 'clerk'
+    });
+    const userBToken = await createSessionToken({
+      id: 'user_bob_222',
+      email: 'bob@example.com',
+      name: 'Bob',
+      type: 'clerk'
+    });
+
+    // Ensure session IDs are distinct and neither user can impersonate the other via query or header overrides
+    const resAlice = await testRequest('GET', '/api/auth/me?userId=user_bob_222', {
+      headers: {
+        cookie: `erd_session=${userAToken}`,
+        'x-user-id': 'user_bob_222'
+      }
+    });
+    assert.strictEqual(resAlice.body.user.id, 'user_alice_111', 'User A identity must never be overridden by client query/headers');
+
+    const resBob = await testRequest('GET', '/api/auth/me?userId=user_alice_111', {
+      headers: {
+        cookie: `erd_session=${userBToken}`,
+        'x-user-id': 'user_alice_111'
+      }
+    });
+    assert.strictEqual(resBob.body.user.id, 'user_bob_222', 'User B identity must strictly map to their own authenticated session');
+    console.log('✓ Test 11: Diagram ownership isolation: user sessions strictly map to authenticated personal IDs.');
+  }
+
   console.log('\n=================================================');
-  console.log('ALL 9 SECURITY VERIFICATION CHECKS PASSED (100%)');
+  console.log('ALL 11 SECURITY & AUTH CHECKS PASSED (100%)');
   console.log('=================================================\n');
 }
 

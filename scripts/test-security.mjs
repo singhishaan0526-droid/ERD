@@ -133,6 +133,23 @@ async function runTests() {
     console.log('✓ Test 7 Passed: /api/auth/logout clears session cookie.');
   }
 
+  // Test 8: Clerk personal account session verification
+  {
+    const token = await createSessionToken({
+      id: 'user_clerk_personal_456',
+      email: 'engineer@example.com',
+      name: 'Lead Engineer',
+      type: 'clerk'
+    });
+    const req = { method: 'GET', headers: { cookie: `erd_session=${token}` } };
+    const res = createMockRes();
+    await meHandler(req, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.data.user.id, 'user_clerk_personal_456');
+    assert.strictEqual(res.data.user.type, 'clerk');
+    console.log('✓ Test 8 Passed: Clerk personal account operates without organization requirement.');
+  }
+
   console.log('\n--- All Automated Security Assertions Passed Successfully! ---');
 }
 
