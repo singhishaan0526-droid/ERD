@@ -123,6 +123,14 @@ export const NeonModal: React.FC<NeonModalProps> = ({
       setActionError('Please enter a name for the diagram.');
       return;
     }
+    if (diagramName.trim().length > 150) {
+      setActionError('Diagram name cannot exceed 150 characters.');
+      return;
+    }
+    if (diagramDescription.trim().length > 2000) {
+      setActionError('Description cannot exceed 2000 characters.');
+      return;
+    }
     if (entities.length === 0) {
       setActionError('Cannot save an empty diagram. Please add at least one entity.');
       return;
@@ -385,6 +393,7 @@ export const NeonModal: React.FC<NeonModalProps> = ({
                 </label>
                 <input
                   type="text"
+                  maxLength={150}
                   value={diagramName}
                   onChange={(e) => setDiagramName(e.target.value)}
                   placeholder="e.g. Hospital Management System"
@@ -404,6 +413,7 @@ export const NeonModal: React.FC<NeonModalProps> = ({
                   Description (Optional)
                 </label>
                 <textarea
+                  maxLength={2000}
                   value={diagramDescription}
                   onChange={(e) => setDiagramDescription(e.target.value)}
                   rows={2}

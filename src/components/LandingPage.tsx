@@ -24,6 +24,8 @@ interface LandingPageProps {
   onOpenErdToSql: () => void;
   onOpenImport: () => void;
   onLoadTemplate: (templateName: string) => void;
+  onOpenPrivacy?: () => void;
+  onOpenTerms?: () => void;
 }
 
 const TEMPLATES = [
@@ -55,7 +57,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onOpenSqlToErd,
   onOpenErdToSql,
   onOpenImport,
-  onLoadTemplate
+  onLoadTemplate,
+  onOpenPrivacy,
+  onOpenTerms
 }) => {
   return (
     <div style={{
@@ -194,40 +198,49 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           Transform plain English into academic Chen notation ER diagrams. Reverse-engineer SQL DDL code into visual models, and export diagrams back to clean SQL with 1-click copy.
         </p>
 
-        {/* Quick CTA Buttons */}
+        {/* One Clear Primary Call to Action */}
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '12px',
+          gap: '14px',
           marginBottom: '44px'
         }}>
           <button
-            onClick={onOpenAutoGenerate}
+            onClick={onOpenStudio}
             className="btn btn-primary btn-lg"
-            style={{ fontWeight: 800, padding: '14px 26px', fontSize: '15px' }}
+            style={{
+              fontWeight: 800,
+              padding: '16px 32px',
+              fontSize: '16px',
+              gap: '10px',
+              boxShadow: 'var(--shadow-lg)'
+            }}
+            aria-label="Start Designing Free - Launch Visual Studio"
           >
-            <Sparkles size={18} />
-            <span>Auto Generate Diagram</span>
+            <span>Start Designing Free</span>
+            <ArrowRight size={18} aria-hidden="true" />
+          </button>
+
+          <button
+            onClick={onOpenAutoGenerate}
+            className="btn btn-secondary btn-lg"
+            style={{ fontWeight: 700, padding: '16px 24px', fontSize: '15px', gap: '8px' }}
+            aria-label="Auto-generate ER Diagram from English text"
+          >
+            <Sparkles size={18} color="#2e7d32" aria-hidden="true" />
+            <span>Auto-Generate from Text</span>
           </button>
 
           <button
             onClick={onOpenSqlToErd}
-            className="btn btn-secondary btn-lg"
-            style={{ fontWeight: 700, padding: '14px 24px', fontSize: '15px' }}
+            className="btn btn-ghost"
+            style={{ fontWeight: 700, padding: '14px 20px', fontSize: '14.5px', gap: '8px' }}
+            aria-label="Convert SQL DDL schema code to ER Diagram"
           >
-            <Code2 size={18} color="#4CAF50" />
-            <span>SQL Code into ERD</span>
-          </button>
-
-          <button
-            onClick={onOpenStudio}
-            className="btn btn-secondary btn-lg"
-            style={{ fontWeight: 700, padding: '14px 20px', fontSize: '15px' }}
-          >
-            <Layers size={18} color="#4CAF50" />
-            <span>Visual Studio</span>
+            <Code2 size={18} color="#2e7d32" aria-hidden="true" />
+            <span>SQL into ERD</span>
           </button>
         </div>
 
@@ -620,11 +633,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         fontSize: '13px',
         color: 'var(--color-text-secondary)'
       }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
           <div>
-            <strong>ER Diagram Maker</strong> — Academic Chen Notation & SQL Engine.
+            <strong>ER Diagram Maker</strong> — Academic Chen Notation &amp; SQL Engine.
           </div>
-          <div style={{ display: 'flex', gap: '16px' }}>
+          <nav aria-label="Footer Navigation" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '14px' }}>
             <button onClick={onOpenStudio} className="btn btn-ghost" style={{ padding: '4px 8px', minHeight: '32px', fontSize: '13px' }}>
               Launch Studio
             </button>
@@ -634,7 +647,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <button onClick={onOpenErdToSql} className="btn btn-ghost" style={{ padding: '4px 8px', minHeight: '32px', fontSize: '13px' }}>
               ERD to SQL
             </button>
-          </div>
+            {onOpenPrivacy && (
+              <button onClick={onOpenPrivacy} className="btn btn-ghost" style={{ padding: '4px 8px', minHeight: '32px', fontSize: '13px' }}>
+                Privacy Policy
+              </button>
+            )}
+            {onOpenTerms && (
+              <button onClick={onOpenTerms} className="btn btn-ghost" style={{ padding: '4px 8px', minHeight: '32px', fontSize: '13px' }}>
+                Terms of Service
+              </button>
+            )}
+            <a
+              href="https://github.com/singhishaan0526-droid/ERD"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-ghost"
+              style={{ padding: '4px 8px', minHeight: '32px', fontSize: '13px' }}
+            >
+              GitHub
+            </a>
+          </nav>
         </div>
       </footer>
     </div>

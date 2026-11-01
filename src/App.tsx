@@ -18,6 +18,24 @@ import { NeonModal } from './components/NeonModal';
 import { convertApiToModel, autoLayoutER, calculateAttributeOffset } from './utils/layout';
 import { downloadPng, downloadSvg } from './utils/export';
 import { getPredefinedTemplate } from './utils/templates';
+import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
+import { TermsPage } from './components/TermsPage';
+import { NotFoundPage } from './components/NotFoundPage';
+import { CookieConsentBanner } from './components/CookieConsentBanner';
+import { trackEvent } from './utils/analytics';
+
+export type AppViewMode = 'login' | 'landing' | 'studio' | 'privacy' | 'terms' | '404';
+
+function getInitialViewMode(): AppViewMode {
+  if (typeof window === 'undefined') return 'landing';
+  const path = window.location.pathname.toLowerCase().replace(/\/+$/, '') || '/';
+  if (path === '' || path === '/' || path === '/landing') return 'landing';
+  if (path === '/studio') return 'studio';
+  if (path === '/login') return 'login';
+  if (path === '/privacy') return 'privacy';
+  if (path === '/terms') return 'terms';
+  return '404';
+}
 
 export const App: React.FC = () => {
   const { user: clerkUser, isLoaded: isClerkLoaded, isSignedIn: isClerkSignedIn } = useUser();
@@ -26,8 +44,29 @@ export const App: React.FC = () => {
   // Authentication user state: Clerk, Google or Guest (derived from secure HttpOnly session cookie)
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
-  // Main view mode: 'login' | 'landing' | 'studio'
-  const [viewMode, setViewMode] = useState<'login' | 'landing' | 'studio'>('login');
+  // Main view mode: 'login' | 'landing' | 'studio' | 'privacy' | 'terms' | '404'
+  const [viewMode, setViewMode] = useState<AppViewMode>(getInitialViewMode);
+
+  const navigateTo = (mode: AppViewMode, replace = false) => {
+    setViewMode(mode);
+    const pathMap: Record<AppViewMode, string> = {
+      landing: '/',
+      studio: '/studio',
+      login: '/login',
+      privacy: '/privacy',
+      terms: '/terms',
+      '404': window.location.pathname
+    };
+    const targetPath = pathMap[mode] || '/';
+    if (window.location.pathname !== targetPath && mode !== '404') {
+      if (replace) {
+        window.history.replaceState(null, '', targetPath);
+      } else {
+        window.history.pushState(null, '', targetPath);
+      }
+    }
+    trackEvent('page_view', { page: mode });
+  };
 
   // Canvas Entities & Relationships
   const [entities, setEntities] = useState<Entity[]>([]);
@@ -62,6 +101,30 @@ export const App: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3200);
   };
 
+  // Handle browser Back / Forward history navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const mode = getInitialViewMode();
+      setViewMode(mode);
+      trackEvent('page_view', { page: mode });
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Dynamic Document Title based on current page / view (SEO)
+  useEffect(() => {
+    const titleMap: Record<AppViewMode, string> = {
+      landing: 'ER Diagram Maker — DBMS Chen Notation Generator & Builder',
+      studio: 'Studio — ER Diagram Maker',
+      login: 'Sign In — ER Diagram Maker',
+      privacy: 'Privacy Policy — ER Diagram Maker',
+      terms: 'Terms and Conditions — ER Diagram Maker',
+      '404': '404 Not Found — ER Diagram Maker'
+    };
+    document.title = titleMap[viewMode] || 'ER Diagram Maker';
+  }, [viewMode]);
+
   // Synchronize Clerk user or check guest session
   useEffect(() => {
     let isMounted = true;
@@ -79,7 +142,9 @@ export const App: React.FC = () => {
           name,
           picture: clerkUser.imageUrl
         });
-        setViewMode('studio');
+        if (viewMode === 'login') {
+          navigateTo('studio');
+        }
         return;
       }
 
@@ -91,7 +156,9 @@ export const App: React.FC = () => {
             const data = await res.json();
             if (data?.user && isMounted) {
               setCurrentUser(data.user);
-              setViewMode('studio');
+              if (viewMode === 'login') {
+                navigateTo('studio');
+              }
               return;
             }
           }
@@ -104,7 +171,6 @@ export const App: React.FC = () => {
           localStorage.removeItem('erd_auth_user');
           sessionStorage.removeItem('erd_guest_session');
           setCurrentUser(null);
-          setViewMode('login');
         }
       }
     }
@@ -124,7 +190,7 @@ export const App: React.FC = () => {
     } else {
       showToast('Guest mode started. Temporary session will be deleted on exit.');
     }
-    setViewMode('studio');
+    navigateTo('studio');
   };
 
   const handleLogout = async () => {
@@ -147,7 +213,7 @@ export const App: React.FC = () => {
       localStorage.removeItem('erd_auth_user');
       sessionStorage.removeItem('erd_guest_session');
       setCurrentUser(null);
-      setViewMode('login');
+      navigateTo('login');
       showToast('Guest session ended. All temporary data has been deleted.');
     } else {
       // Clerk or Google logout
@@ -171,7 +237,7 @@ export const App: React.FC = () => {
       localStorage.removeItem('erd_auth_user');
       sessionStorage.removeItem('erd_guest_session');
       setCurrentUser(null);
-      setViewMode('login');
+      navigateTo('login');
       showToast('Signed out. Your diagrams remain saved in Neon.');
     }
   };
@@ -494,34 +560,64 @@ export const App: React.FC = () => {
 
   return (
     <div className="app-layout">
+      {/* Accessibility Skip Link */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       {/* 1. Dedicated Login Page */}
       {viewMode === 'login' ? (
-        <LoginPage onLogin={handleLogin} />
+        <LoginPage
+          onLogin={handleLogin}
+          onOpenPrivacy={() => navigateTo('privacy')}
+          onOpenTerms={() => navigateTo('terms')}
+        />
+      ) : viewMode === 'privacy' ? (
+        <PrivacyPolicyPage
+          onBackToHome={() => navigateTo('landing')}
+          onOpenStudio={() => navigateTo('studio')}
+        />
+      ) : viewMode === 'terms' ? (
+        <TermsPage
+          onBackToHome={() => navigateTo('landing')}
+          onOpenStudio={() => navigateTo('studio')}
+        />
+      ) : viewMode === '404' ? (
+        <NotFoundPage
+          onBackToHome={() => navigateTo('landing')}
+          onOpenStudio={() => navigateTo('studio')}
+          onOpenSqlToErd={() => {
+            navigateTo('studio');
+            setIsSqlToErdOpen(true);
+          }}
+        />
       ) : viewMode === 'landing' ? (
         /* 2. Landing Page View */
         <LandingPage
-          onOpenStudio={() => setViewMode('studio')}
+          onOpenStudio={() => navigateTo('studio')}
           onOpenAutoGenerate={() => {
-            setViewMode('studio');
+            navigateTo('studio');
             setActiveTab('generate');
             if (window.innerWidth < 900) {
               setBottomSheetMode('generate');
             }
           }}
           onOpenSqlToErd={() => {
-            setViewMode('studio');
+            navigateTo('studio');
             setIsSqlToErdOpen(true);
           }}
           onOpenErdToSql={() => {
-            setViewMode('studio');
+            navigateTo('studio');
             setIsErdToSqlOpen(true);
           }}
           onOpenImport={() => {
-            setViewMode('studio');
+            navigateTo('studio');
             setImportExportTab('import');
             setIsImportExportOpen(true);
           }}
           onLoadTemplate={handleLoadTemplate}
+          onOpenPrivacy={() => navigateTo('privacy')}
+          onOpenTerms={() => navigateTo('terms')}
         />
       ) : (
         /* 3. Visual Studio & Canvas View */
@@ -556,7 +652,7 @@ export const App: React.FC = () => {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <button
-                  onClick={() => setViewMode('login')}
+                  onClick={() => navigateTo('login')}
                   style={{
                     backgroundColor: '#10b981',
                     color: '#ffffff',
@@ -594,14 +690,14 @@ export const App: React.FC = () => {
             relationshipCount={relationships.length}
             currentUser={currentUser}
             onLogout={handleLogout}
-            onOpenLogin={() => setViewMode('login')}
+            onOpenLogin={() => navigateTo('login')}
             onAutoLayout={handleAutoLayout}
             onClearCanvas={handleClearCanvas}
             onDownloadPng={handleDownloadPng}
             onDownloadSvg={handleDownloadSvg}
             isDownloading={isDownloading}
             onOpenHelp={() => setIsHelpOpen(true)}
-            onOpenLanding={() => setViewMode('landing')}
+            onOpenLanding={() => navigateTo('landing')}
             onOpenSqlToErd={() => setIsSqlToErdOpen(true)}
             onOpenErdToSql={() => setIsErdToSqlOpen(true)}
             onOpenImportExport={() => {
@@ -612,7 +708,7 @@ export const App: React.FC = () => {
           />
 
           {/* Main workspace */}
-          <main className="app-main">
+          <main id="main-content" className="app-main">
             {/* Left Control Sidebar (Desktop only) */}
             <div className="desktop-only" style={{ height: '100%', display: 'flex' }}>
               <Sidebar
@@ -812,6 +908,9 @@ export const App: React.FC = () => {
           </span>
         </div>
       )}
+
+      {/* Cookie & Essential Storage Notice Banner */}
+      <CookieConsentBanner onOpenPrivacy={() => navigateTo('privacy')} />
     </div>
   );
 };

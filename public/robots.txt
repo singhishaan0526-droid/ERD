@@ -1,0 +1,9 @@
+# robots.txt for ER Diagram Maker
+User-agent: *
+Allow: /
+Allow: /privacy
+Allow: /terms
+Disallow: /api/
+
+Sitemap: https://erd-maker.vercel.app/sitemap.xml
+

@@ -59,13 +59,19 @@ export function parseCookies(req: any): Record<string, string> {
 
 export async function getSessionUser(req: any): Promise<SessionUser | null> {
   const clerkSecret = process.env.CLERK_SECRET_KEY;
+  const clerkJwtKey = process.env.CLERK_JWT_KEY;
+  const hasClerk = !!(clerkSecret || clerkJwtKey);
+  const clerkOpts: any = {
+    ...(clerkSecret ? { secretKey: clerkSecret } : {}),
+    ...(clerkJwtKey ? { jwtKey: clerkJwtKey } : {})
+  };
 
   // 1. Check Bearer Authorization header for Clerk token
   const authHeader = req?.headers?.authorization || (typeof req?.headers?.get === 'function' ? req.headers.get('authorization') : '');
-  if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ') && clerkSecret) {
+  if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ') && hasClerk) {
     const token = authHeader.slice(7).trim();
     try {
-      const payload = await verifyToken(token, { secretKey: clerkSecret });
+      const payload = await verifyToken(token, clerkOpts);
       if (payload?.sub) {
         return {
           id: String(payload.sub),
@@ -81,9 +87,9 @@ export async function getSessionUser(req: any): Promise<SessionUser | null> {
   const cookies = parseCookies(req);
 
   // 2. Check Clerk __session cookie
-  if (cookies.__session && clerkSecret) {
+  if (cookies.__session && hasClerk) {
     try {
-      const payload = await verifyToken(cookies.__session, { secretKey: clerkSecret });
+      const payload = await verifyToken(cookies.__session, clerkOpts);
       if (payload?.sub) {
         return {
           id: String(payload.sub),

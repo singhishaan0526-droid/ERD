@@ -75,10 +75,10 @@ export const MobileImagePreviewModal: React.FC<MobileImagePreviewModalProps> = (
               Diagram Export Ready
             </h3>
             <p style={{ fontSize: '12px', color: 'var(--color-primary-dark)', fontWeight: 600 }}>
-              Touch & hold image to Save to Photos
+              Touch &amp; hold image to Save to Photos
             </p>
           </div>
-          <button onClick={onClose} className="btn btn-ghost" style={{ width: '44px', height: '44px', padding: 0 }}>
+          <button onClick={onClose} className="btn btn-ghost" style={{ width: '44px', height: '44px', padding: 0 }} aria-label="Close Preview">
             <X size={20} />
           </button>
         </div>
@@ -104,12 +104,14 @@ export const MobileImagePreviewModal: React.FC<MobileImagePreviewModalProps> = (
             textAlign: 'center',
             width: '100%'
           }}>
-            👆 Touch & hold image to Save to Photos or Files
+            👆 Touch &amp; hold image to Save to Photos or Files
           </div>
 
           <img
             src={dataUrl}
-            alt="ER Diagram Export"
+            alt="ER Diagram Chen Notation Export Preview"
+            loading="eager"
+            decoding="async"
             style={{
               maxWidth: '100%',
               height: 'auto',

@@ -5,9 +5,11 @@ import { AuthUser } from '../types';
 
 interface LoginPageProps {
   onLogin: (user: AuthUser) => void;
+  onOpenPrivacy?: () => void;
+  onOpenTerms?: () => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenPrivacy, onOpenTerms }) => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -21,21 +23,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         credentials: 'include'
       });
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || 'Failed to start guest session');
-      }
-
-      const data = await res.json();
-      if (data?.user) {
-        onLogin(data.user);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.user) {
+          onLogin(data.user);
+          return;
+        }
       }
     } catch (err: any) {
-      console.error('Guest login failed:', err);
-      setAuthError(err.message || 'Failed to start guest session.');
-    } finally {
-      setIsAuthenticating(false);
+      console.warn('Server guest session failed, falling back to local guest session:', err);
     }
+
+    // Resilient fallback: ephemeral guest session so drafting is never blocked
+    const fallbackGuestUser: AuthUser = {
+      id: `guest_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name: 'Guest User',
+      type: 'guest'
+    };
+    onLogin(fallbackGuestUser);
+    setIsAuthenticating(false);
   };
 
   return (
@@ -469,8 +475,28 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               Connected to <strong>Neon Serverless PostgreSQL</strong>.
             </span>
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-            Academic Chen Notation • AI Model Generator
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {onOpenPrivacy && (
+              <button
+                onClick={onOpenPrivacy}
+                className="btn btn-ghost"
+                style={{ padding: '4px 8px', minHeight: '32px', fontSize: '12px' }}
+              >
+                Privacy Policy
+              </button>
+            )}
+            {onOpenTerms && (
+              <button
+                onClick={onOpenTerms}
+                className="btn btn-ghost"
+                style={{ padding: '4px 8px', minHeight: '32px', fontSize: '12px' }}
+              >
+                Terms &amp; Conditions
+              </button>
+            )}
+            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+              Academic Chen Notation • AI Model Generator
+            </div>
           </div>
         </div>
       </main>

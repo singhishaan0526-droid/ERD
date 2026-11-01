@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="erdGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4CAF50" />
+      <stop offset="100%" stop-color="#2E7D32" />
+    </linearGradient>
+  </defs>
+  <!-- Background Badge -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="2" />
+  <!-- Chen Entity Rectangle -->
+  <rect x="10" y="14" width="22" height="16" rx="3" fill="#E8F5E9" stroke="url(#erdGreen)" stroke-width="2.5" />
+  <!-- Chen Attribute Ellipse -->
+  <ellipse cx="21" cy="46" rx="12" ry="7.5" fill="#FFFFFF" stroke="url(#erdGreen)" stroke-width="2.2" />
+  <!-- Relationship Diamond -->
+  <polygon points="46,12 56,22 46,32 36,22" fill="#E8F5E9" stroke="url(#erdGreen)" stroke-width="2.2" />
+  <!-- Connector Lines -->
+  <line x1="21" y1="30" x2="21" y2="38.5" stroke="#2E7D32" stroke-width="2" />
+  <line x1="32" y1="22" x2="36" y2="22" stroke="#2E7D32" stroke-width="2" />
+  <!-- Primary Key underline inside ellipse -->
+  <line x1="15" y1="48" x2="27" y2="48" stroke="#166534" stroke-width="1.8" />
+</svg>
+

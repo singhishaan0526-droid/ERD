@@ -7,6 +7,8 @@ interface AutoGeneratePanelProps {
   onSwitchToManual: () => void;
 }
 
+const MAX_DESC_LENGTH = 1500;
+
 const EXAMPLE_PROMPTS = [
   {
     title: 'Library System',
@@ -36,9 +38,16 @@ export const AutoGeneratePanel: React.FC<AutoGeneratePanelProps> = ({
   const [successInfo, setSuccessInfo] = useState<{ entities: number; relationships: number } | null>(null);
 
   const handleGenerate = async (textToUse?: string) => {
-    const text = (textToUse !== undefined ? textToUse : description).trim();
+    const rawText = textToUse !== undefined ? textToUse : description;
+    const text = rawText.trim();
+
     if (!text) {
       setErrorMessage('Please type a short description of your database first.');
+      return;
+    }
+
+    if (text.length > MAX_DESC_LENGTH) {
+      setErrorMessage(`Description is too long (${text.length} characters). Please keep under ${MAX_DESC_LENGTH} characters.`);
       return;
     }
 
@@ -77,6 +86,8 @@ export const AutoGeneratePanel: React.FC<AutoGeneratePanelProps> = ({
     }
   };
 
+  const isOverLimit = description.length > MAX_DESC_LENGTH;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Introduction */}
@@ -89,28 +100,54 @@ export const AutoGeneratePanel: React.FC<AutoGeneratePanelProps> = ({
         </p>
       </div>
 
-      {/* Input Textarea */}
+      {/* Input Textarea & Counter */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="e.g. A university system with students, professors, and courses. Students enroll in multiple courses, and professors teach courses..."
-          className="textarea-text"
-          style={{ minHeight: '130px', fontSize: '13.5px' }}
-          disabled={isLoading}
-        />
+        <div style={{ position: 'relative' }}>
+          <textarea
+            value={description}
+            onChange={(e) => {
+              setDescription(e.target.value);
+              if (errorMessage) setErrorMessage(null);
+            }}
+            placeholder="e.g. A university system with students, professors, and courses. Students enroll in multiple courses, and professors teach courses..."
+            className="textarea-text"
+            style={{
+              minHeight: '130px',
+              fontSize: '13.5px',
+              borderColor: isOverLimit ? 'var(--color-danger)' : undefined
+            }}
+            disabled={isLoading}
+            aria-invalid={isOverLimit || !!errorMessage}
+            aria-describedby="char-count"
+          />
+          <div
+            id="char-count"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontSize: '11.5px',
+              color: isOverLimit ? 'var(--color-danger)' : 'var(--color-text-muted)',
+              marginTop: '4px',
+              fontWeight: 600
+            }}
+          >
+            <span>Limit: {MAX_DESC_LENGTH} characters</span>
+            <span>{description.length} / {MAX_DESC_LENGTH}</span>
+          </div>
+        </div>
 
         {/* Generate Button */}
         <button
           onClick={() => handleGenerate()}
-          disabled={isLoading || !description.trim()}
+          disabled={isLoading || !description.trim() || isOverLimit}
           className="btn btn-primary btn-lg"
           style={{ width: '100%', marginTop: '4px' }}
         >
           {isLoading ? (
             <>
               <RefreshCw size={18} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-              <span>Analyzing & Modeling...</span>
+              <span>Analyzing &amp; Modeling...</span>
             </>
           ) : (
             <>
@@ -141,23 +178,26 @@ export const AutoGeneratePanel: React.FC<AutoGeneratePanelProps> = ({
             backgroundColor: 'var(--color-primary)',
             animation: 'pulseGlow 1.5s infinite'
           }} />
-          <span>Extracting entities, primary keys & relationships...</span>
+          <span>Extracting entities, primary keys &amp; relationships...</span>
         </div>
       )}
 
       {/* Error state with retry */}
       {errorMessage && (
-        <div style={{
-          padding: '14px',
-          borderRadius: 'var(--radius-md)',
-          backgroundColor: 'var(--color-danger-bg)',
-          border: '1.5px solid var(--color-danger-border)',
-          color: 'var(--color-danger)',
-          fontSize: '13px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px'
-        }}>
+        <div
+          role="alert"
+          style={{
+            padding: '14px',
+            borderRadius: 'var(--radius-md)',
+            backgroundColor: 'var(--color-danger-bg)',
+            border: '1.5px solid var(--color-danger-border)',
+            color: 'var(--color-danger)',
+            fontSize: '13px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
             <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
             <span style={{ fontWeight: 600 }}>{errorMessage}</span>
