@@ -1,40 +1,37 @@
-import { getDb, ensureTables } from '../_db';
+import { getDb } from '../_db';
+import { getSessionUser, clearSessionCookie } from '../_auth';
 
 export default async function handler(req: any, res: any) {
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-User-Id');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-    const { guestId } = body;
+    const session = await getSessionUser(req);
+    if (!session) {
+      return res.status(401).json({ error: 'Unauthorized: Session required for guest wipe' });
+    }
+
+    if (session.type !== 'guest') {
+      return res.status(403).json({ error: 'Forbidden: Only guest sessions can be wiped' });
+    }
 
     const sql = getDb();
-    await ensureTables(sql);
+    const rows = await sql`
+      DELETE FROM saved_diagrams 
+      WHERE user_id = ${session.id} AND is_guest = TRUE 
+      RETURNING id
+    `;
 
-    let rows;
-    if (guestId) {
-      rows = await sql`DELETE FROM saved_diagrams WHERE user_id = ${String(guestId)} OR (is_guest = TRUE AND user_id = ${String(guestId)}) RETURNING id`;
-    } else {
-      rows = await sql`DELETE FROM saved_diagrams WHERE is_guest = TRUE RETURNING id`;
-    }
+    clearSessionCookie(res);
 
     return res.status(200).json({
       success: true,
-      message: 'Guest session wiped completely.',
+      message: 'Guest session wiped successfully.',
       deletedCount: rows.length
     });
   } catch (err: any) {
-    console.error('Guest wipe error in Vercel function:', err);
-    return res.status(500).json({ error: err.message || 'Failed to wipe guest data.' });
+    console.error('Guest wipe error:', err);
+    return res.status(500).json({ error: 'Failed to wipe guest data.' });
   }
 }

@@ -4,3 +4,12 @@ dist
 .env.local
 .DS_Store
 .neon
+.gemini
+.agent
+.agents
+.gsd
+adapters
+PROJECT_RULES.md
+GSD-STYLE.md
+VERSION
+model_capabilities.yaml

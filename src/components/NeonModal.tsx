@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@clerk/react';
 import { X, Database, Cloud, RefreshCw, Trash2, FolderDown, Save, CheckCircle2, AlertTriangle, Clock, Layers } from 'lucide-react';
 import { Entity, Relationship, AuthUser } from '../types';
 
 interface NeonDbStatus {
   status: 'connected' | 'error' | 'disconnected';
-  database?: string;
-  user?: string;
-  version?: string;
-  serverTime?: string;
-  totalSavedDiagrams?: number;
+  provider?: string;
   latencyMs?: number;
-  branch?: string;
+  userSavedDiagrams?: number;
   error?: string;
 }
 
@@ -43,6 +40,7 @@ export const NeonModal: React.FC<NeonModalProps> = ({
   onLoadDiagram,
   onToast
 }) => {
+  const { getToken } = useAuth();
   const [activeTab, setActiveTab] = useState<'save' | 'library' | 'status'>('save');
   const [diagramName, setDiagramName] = useState('');
   const [diagramDescription, setDiagramDescription] = useState('');
@@ -52,6 +50,18 @@ export const NeonModal: React.FC<NeonModalProps> = ({
   const [dbStatus, setDbStatus] = useState<NeonDbStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
+    try {
+      const token = await getToken();
+      if (token) {
+        return { Authorization: `Bearer ${token}` };
+      }
+    } catch {
+      // Guest or no token
+    }
+    return {};
+  };
 
   // Fetch status and library whenever opened
   useEffect(() => {
@@ -68,7 +78,15 @@ export const NeonModal: React.FC<NeonModalProps> = ({
     setLoadingStatus(true);
     setActionError(null);
     try {
-      const res = await fetch('/api/db/status');
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch('/api/db/status', {
+        headers: authHeaders,
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Status request failed (${res.status})`);
+      }
       const data = await res.json();
       setDbStatus(data);
     } catch (err: any) {
@@ -82,11 +100,15 @@ export const NeonModal: React.FC<NeonModalProps> = ({
     setIsLoadingLibrary(true);
     setActionError(null);
     try {
-      const endpoint = currentUser?.id
-        ? `/api/diagrams?userId=${encodeURIComponent(currentUser.id)}`
-        : '/api/diagrams';
-      const res = await fetch(endpoint);
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch('/api/diagrams', {
+        headers: authHeaders,
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error ${res.status}`);
+      }
       const data = await res.json();
       setSavedDiagrams(data.diagrams || []);
     } catch (err: any) {
@@ -114,15 +136,17 @@ export const NeonModal: React.FC<NeonModalProps> = ({
         name: diagramName.trim(),
         description: diagramDescription.trim(),
         entities,
-        relationships,
-        userId: currentUser?.id || 'public',
-        userEmail: currentUser?.type === 'google' ? currentUser.email : '',
-        isGuest: currentUser?.type === 'guest'
+        relationships
       };
 
+      const authHeaders = await getAuthHeaders();
       const res = await fetch('/api/diagrams', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders
+        },
+        credentials: 'include',
         body: JSON.stringify(payload)
       });
 
@@ -132,7 +156,7 @@ export const NeonModal: React.FC<NeonModalProps> = ({
       }
 
       onToast(
-        currentUser?.type === 'google'
+        currentUser?.type === 'clerk' || currentUser?.type === 'google'
           ? `Saved "${diagramName}" to your Neon PostgreSQL account!`
           : `Saved "${diagramName}" to temporary guest session.`
       );
@@ -148,7 +172,11 @@ export const NeonModal: React.FC<NeonModalProps> = ({
 
   const handleLoadDiagram = async (id: string, name: string) => {
     try {
-      const res = await fetch(`/api/diagrams/${id}`);
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch(`/api/diagrams/${encodeURIComponent(id)}`, {
+        headers: authHeaders,
+        credentials: 'include'
+      });
       if (!res.ok) throw new Error('Failed to fetch diagram details');
       const data = await res.json();
       const diagram = data.diagram;
@@ -166,8 +194,13 @@ export const NeonModal: React.FC<NeonModalProps> = ({
     if (!confirm(`Are you sure you want to delete "${name}" from Neon PostgreSQL?`)) return;
 
     try {
-      const res = await fetch(`/api/diagrams/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete');
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch(`/api/diagrams/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: authHeaders,
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Failed to delete diagram');
       onToast(`Deleted "${name}".`);
       fetchDiagrams();
       fetchStatus();
@@ -402,7 +435,7 @@ export const NeonModal: React.FC<NeonModalProps> = ({
                   <span>{entities.length} entities • {relationships.length} relationships</span>
                 </div>
                 <div style={{ color: 'var(--color-text-muted)' }}>
-                  Branch: <code style={{ backgroundColor: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>{dbStatus?.branch || 'production'}</code>
+                  Storage: <span style={{ fontWeight: 600 }}>Neon Serverless Postgres</span>
                 </div>
               </div>
 
@@ -435,7 +468,7 @@ export const NeonModal: React.FC<NeonModalProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                  {savedDiagrams.length} saved diagrams stored in database
+                  {savedDiagrams.length} saved diagrams in your workspace
                 </span>
                 <button
                   onClick={fetchDiagrams}
@@ -470,7 +503,7 @@ export const NeonModal: React.FC<NeonModalProps> = ({
                   color: 'var(--color-text-muted)'
                 }}>
                   <Database size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
-                  <p style={{ margin: 0, fontWeight: 600 }}>No diagrams saved in Neon yet.</p>
+                  <p style={{ margin: 0, fontWeight: 600 }}>No diagrams saved yet.</p>
                   <p style={{ margin: '4px 0 0', fontSize: '12px' }}>
                     Switch to the "Save Current Diagram" tab to save your first ER model.
                   </p>
@@ -594,25 +627,15 @@ export const NeonModal: React.FC<NeonModalProps> = ({
                 <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12.5px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--color-text-muted)' }}>Provider</span>
-                    <span style={{ fontWeight: 600 }}>Neon Cloud (Serverless Postgres)</span>
+                    <span style={{ fontWeight: 600 }}>Neon Serverless Postgres</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--color-text-muted)' }}>Database</span>
-                    <code style={{ fontWeight: 600 }}>{dbStatus?.database || 'neondb'}</code>
+                    <span style={{ color: 'var(--color-text-muted)' }}>Connection Latency</span>
+                    <span style={{ fontWeight: 600 }}>{dbStatus?.latencyMs !== undefined ? `${dbStatus.latencyMs} ms` : '—'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--color-text-muted)' }}>Branch</span>
-                    <code style={{ fontWeight: 600 }}>{dbStatus?.branch || 'production'}</code>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--color-text-muted)' }}>PostgreSQL Engine</span>
-                    <span style={{ fontSize: '11px', textAlign: 'right', maxWidth: '350px' }}>
-                      {dbStatus?.version ? dbStatus.version.split(' on ')[0] : 'PostgreSQL 18.x'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--color-text-muted)' }}>Total Diagrams in DB</span>
-                    <span style={{ fontWeight: 600 }}>{dbStatus?.totalSavedDiagrams ?? savedDiagrams.length}</span>
+                    <span style={{ color: 'var(--color-text-muted)' }}>Your Saved Diagrams</span>
+                    <span style={{ fontWeight: 600 }}>{dbStatus?.userSavedDiagrams ?? savedDiagrams.length}</span>
                   </div>
                 </div>
               </div>

@@ -1,14 +1,23 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import crypto from 'node:crypto';
+import { OAuth2Client } from 'google-auth-library';
 import { generateERDiagram } from './generator.js';
 import { query } from './db.js';
+import {
+  getSessionUser,
+  createSessionToken,
+  setSessionCookie,
+  clearSessionCookie
+} from './auth.js';
 
 const router = express.Router();
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Basic rate limiting: 30 requests per minute for AI generation
+// Basic rate limiting: 15 requests per minute for AI generation
 const limiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 30,
+  max: 15,
   message: { error: 'Too many requests. Please wait a minute and try again.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -31,16 +40,19 @@ router.post('/generate', limiter, async (req, res) => {
   } catch (err) {
     console.error('Error generating ER diagram:', err);
     return res.status(500).json({
-      error: err.message || 'Failed to generate diagram. Please try again.'
+      error: 'Failed to generate diagram. Please try again.'
     });
   }
 });
 
-// --- Neon Postgres Service Endpoints ---
-
-// Check Neon database health and connection status
+// --- Neon Postgres Status Endpoint ---
 router.get('/db/status', async (req, res) => {
   try {
+    const session = await getSessionUser(req);
+    if (!session) {
+      return res.status(401).json({ error: 'Unauthorized: Authentication required.' });
+    }
+
     if (!process.env.DATABASE_URL) {
       return res.status(503).json({
         status: 'disconnected',
@@ -48,158 +60,214 @@ router.get('/db/status', async (req, res) => {
       });
     }
 
-    const result = await query(`
-      SELECT 
-        current_database() AS database,
-        current_user AS user,
-        version() AS version,
-        NOW() AS server_time,
-        (SELECT COUNT(*) FROM saved_diagrams) AS total_saved_diagrams
-    `);
+    const result = await query(
+      `SELECT 1 as ping, (SELECT COUNT(*) FROM saved_diagrams WHERE user_id = $1) AS user_diagrams`,
+      [session.id]
+    );
 
     const row = result.rows[0];
     return res.json({
       status: 'connected',
-      provider: 'Neon Postgres',
-      database: row.database,
-      user: row.user,
-      version: row.version,
-      serverTime: row.server_time,
-      totalSavedDiagrams: parseInt(row.total_saved_diagrams, 10),
+      provider: 'Neon Serverless Postgres',
       latencyMs: result.duration,
-      branch: process.env.NEON_BRANCH || 'production'
+      userSavedDiagrams: parseInt(row?.user_diagrams || '0', 10)
     });
   } catch (err) {
     console.error('Neon DB status check error:', err);
     return res.status(500).json({
       status: 'error',
-      error: err.message || 'Database connection error'
+      error: 'Database connection error'
     });
   }
 });
 
 // --- Authentication Endpoints ---
 
-// Google Login / Upsert User in Neon Postgres
+// Google Login: verify credential token from Google Identity Services
 router.post('/auth/google', async (req, res) => {
   try {
-    const { id, email, name, picture } = req.body || {};
-    if (!id || !email) {
-      return res.status(400).json({ error: 'Missing Google user ID or email.' });
+    const { credential } = req.body || {};
+    if (!credential || typeof credential !== 'string') {
+      return res.status(401).json({ error: 'Missing Google credential token.' });
     }
 
-    const userId = String(id).trim();
-    const userEmail = String(email).toLowerCase().trim();
-    const userName = name ? String(name).trim() : 'Google User';
-    const userPicture = picture ? String(picture) : '';
+    const clientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      console.error('GOOGLE_CLIENT_ID is not configured.');
+      return res.status(500).json({ error: 'Server authentication configuration error.' });
+    }
+
+    let ticket;
+    try {
+      ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: clientId,
+      });
+    } catch (verifyErr) {
+      console.error('Google token verification failed:', verifyErr.message);
+      return res.status(401).json({ error: 'Invalid Google token' });
+    }
+
+    const payload = ticket.getPayload();
+    if (!payload?.sub || !payload.email || !payload.email_verified) {
+      return res.status(401).json({ error: 'Invalid Google token payload or unverified email' });
+    }
+
+    const userId = payload.sub;
+    const userEmail = payload.email.toLowerCase().trim();
+    const userName = payload.name || payload.given_name || 'Google User';
+    const userPicture = payload.picture || '';
 
     const result = await query(
       `INSERT INTO users (id, email, name, picture, provider, last_login)
        VALUES ($1, $2, $3, $4, 'google', NOW())
-       ON CONFLICT (email) DO UPDATE SET
+       ON CONFLICT (id) DO UPDATE SET
+         email = EXCLUDED.email,
          name = EXCLUDED.name,
          picture = CASE WHEN EXCLUDED.picture <> '' THEN EXCLUDED.picture ELSE users.picture END,
          last_login = NOW()
-       RETURNING id, email, name, picture, provider, created_at, last_login`,
+       RETURNING id, email, name, picture`,
       [userId, userEmail, userName, userPicture]
     );
 
-    return res.json({ user: result.rows[0], success: true });
+    const userRecord = result.rows[0] || { id: userId, email: userEmail, name: userName, picture: userPicture };
+    const sessionUser = {
+      id: userRecord.id,
+      email: userRecord.email,
+      name: userRecord.name,
+      picture: userRecord.picture,
+      type: 'google'
+    };
+
+    const sessionToken = await createSessionToken(sessionUser);
+    setSessionCookie(res, sessionToken, false);
+
+    return res.json({ success: true, user: sessionUser });
   } catch (err) {
     console.error('Google auth error:', err);
-    return res.status(500).json({ error: err.message || 'Failed to authenticate user.' });
+    return res.status(500).json({ error: 'Failed to authenticate user.' });
   }
 });
 
-// Guest Wipe: Deletes all temporary diagrams and data associated with a guest session
+// Guest Login: creates a server-issued guest session
+router.post('/auth/guest', async (req, res) => {
+  try {
+    const guestId = `guest_${crypto.randomUUID()}`;
+    const guestUser = {
+      id: guestId,
+      name: 'Guest User',
+      type: 'guest'
+    };
+
+    const token = await createSessionToken(guestUser);
+    setSessionCookie(res, token, true);
+
+    return res.json({ success: true, user: guestUser });
+  } catch (err) {
+    console.error('Guest auth error:', err);
+    return res.status(500).json({ error: 'Failed to create guest session.' });
+  }
+});
+
+// Check Session
+router.get('/auth/me', async (req, res) => {
+  try {
+    const session = await getSessionUser(req);
+    if (!session) {
+      return res.status(401).json({ error: 'Unauthorized', user: null });
+    }
+    return res.json({ user: session });
+  } catch (err) {
+    console.error('Session verification error:', err);
+    return res.status(500).json({ error: 'Failed to verify session' });
+  }
+});
+
+// Logout
+router.post('/auth/logout', (req, res) => {
+  try {
+    clearSessionCookie(res);
+    return res.json({ success: true, message: 'Logged out successfully' });
+  } catch (err) {
+    console.error('Logout error:', err);
+    return res.status(500).json({ error: 'Failed to log out' });
+  }
+});
+
+// Guest Wipe: Deletes all temporary diagrams belonging ONLY to the caller's guest session
 router.post('/auth/guest-wipe', async (req, res) => {
   try {
-    const { guestId } = req.body || {};
-    if (guestId) {
-      const result = await query(
-        `DELETE FROM saved_diagrams WHERE user_id = $1 OR (is_guest = TRUE AND user_id = $1)`,
-        [String(guestId)]
-      );
-      return res.json({
-        success: true,
-        message: 'Guest session wiped completely.',
-        deletedCount: result.rowCount
-      });
+    const session = await getSessionUser(req);
+    if (!session) {
+      return res.status(401).json({ error: 'Unauthorized: Session required for guest wipe' });
     }
 
-    // If no guestId specified, clean up all guest diagrams flagged as guest
-    const result = await query(`DELETE FROM saved_diagrams WHERE is_guest = TRUE`);
+    if (session.type !== 'guest') {
+      return res.status(403).json({ error: 'Forbidden: Only guest sessions can be wiped' });
+    }
+
+    const result = await query(
+      `DELETE FROM saved_diagrams WHERE user_id = $1 AND is_guest = TRUE`,
+      [session.id]
+    );
+
+    clearSessionCookie(res);
+
     return res.json({
       success: true,
-      message: 'All guest records deleted.',
+      message: 'Guest session wiped completely.',
       deletedCount: result.rowCount
     });
   } catch (err) {
     console.error('Guest wipe error:', err);
-    return res.status(500).json({ error: err.message || 'Failed to wipe guest data.' });
+    return res.status(500).json({ error: 'Failed to wipe guest data.' });
   }
 });
 
-// List saved diagrams (scoped by user, or public)
+// List saved diagrams (scoped strictly to verified user)
 router.get('/diagrams', async (req, res) => {
   try {
-    const userId = req.query.userId || req.headers['x-user-id'];
-
-    let result;
-    if (userId) {
-      // Return diagrams belonging to this specific user (Google or Guest)
-      result = await query(
-        `SELECT 
-          id, 
-          name, 
-          description, 
-          user_id,
-          user_email,
-          is_guest,
-          jsonb_array_length(entities) AS entity_count,
-          jsonb_array_length(relationships) AS relationship_count,
-          created_at, 
-          updated_at
-        FROM saved_diagrams
-        WHERE user_id = $1
-        ORDER BY updated_at DESC`,
-        [String(userId)]
-      );
-    } else {
-      // Default / public list
-      result = await query(`
-        SELECT 
-          id, 
-          name, 
-          description, 
-          user_id,
-          user_email,
-          is_guest,
-          jsonb_array_length(entities) AS entity_count,
-          jsonb_array_length(relationships) AS relationship_count,
-          created_at, 
-          updated_at
-        FROM saved_diagrams
-        WHERE is_guest = FALSE OR is_guest IS NULL
-        ORDER BY updated_at DESC
-      `);
+    const session = await getSessionUser(req);
+    if (!session) {
+      return res.status(401).json({ error: 'Unauthorized: Authentication required.' });
     }
+
+    const result = await query(
+      `SELECT 
+        id, 
+        name, 
+        description, 
+        is_guest,
+        jsonb_array_length(entities) AS entity_count,
+        jsonb_array_length(relationships) AS relationship_count,
+        created_at, 
+        updated_at
+      FROM saved_diagrams
+      WHERE user_id = $1
+      ORDER BY updated_at DESC`,
+      [session.id]
+    );
 
     return res.json({ diagrams: result.rows });
   } catch (err) {
     console.error('Error fetching diagrams:', err);
-    return res.status(500).json({ error: err.message || 'Failed to fetch diagrams.' });
+    return res.status(500).json({ error: 'Failed to fetch diagrams.' });
   }
 });
 
-// Get a single diagram by ID
+// Get a single diagram by ID (owner check)
 router.get('/diagrams/:id', async (req, res) => {
   try {
+    const session = await getSessionUser(req);
+    if (!session) {
+      return res.status(401).json({ error: 'Unauthorized: Authentication required.' });
+    }
+
     const { id } = req.params;
     const result = await query(
-      `SELECT id, name, description, entities, relationships, user_id, user_email, is_guest, created_at, updated_at 
-       FROM saved_diagrams WHERE id = $1`,
-      [id]
+      `SELECT id, name, description, entities, relationships, is_guest, created_at, updated_at 
+       FROM saved_diagrams WHERE id = $1 AND user_id = $2`,
+      [id, session.id]
     );
 
     if (result.rows.length === 0) {
@@ -209,35 +277,48 @@ router.get('/diagrams/:id', async (req, res) => {
     return res.json({ diagram: result.rows[0] });
   } catch (err) {
     console.error('Error fetching diagram:', err);
-    return res.status(500).json({ error: err.message || 'Failed to fetch diagram.' });
+    return res.status(500).json({ error: 'Failed to fetch diagram.' });
   }
 });
 
-// Save or update a diagram (with user ownership)
+// Save or update a diagram (strictly scoped to owner)
 router.post('/diagrams', async (req, res) => {
   try {
+    const session = await getSessionUser(req);
+    if (!session) {
+      return res.status(401).json({ error: 'Unauthorized: Authentication required.' });
+    }
+
     const {
       id,
       name,
       description = '',
       entities = [],
-      relationships = [],
-      userId = 'public',
-      userEmail = '',
-      isGuest = false
+      relationships = []
     } = req.body || {};
 
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'Diagram name is required.' });
     }
+    if (name.length > 150) {
+      return res.status(400).json({ error: 'Diagram name is too long (maximum 150 characters).' });
+    }
 
-    if (!Array.isArray(entities)) {
-      return res.status(400).json({ error: 'Entities must be an array.' });
+    if (typeof description !== 'string' || description.length > 2000) {
+      return res.status(400).json({ error: 'Description must be under 2000 characters.' });
+    }
+
+    if (!Array.isArray(entities) || entities.length > 100) {
+      return res.status(400).json({ error: 'Entities must be an array with at most 100 items.' });
+    }
+
+    if (!Array.isArray(relationships) || relationships.length > 100) {
+      return res.status(400).json({ error: 'Relationships must be an array with at most 100 items.' });
     }
 
     const diagramId = id && typeof id === 'string' && id.trim()
-      ? id.trim()
-      : `diag_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      ? id.trim().slice(0, 64)
+      : `diag_${crypto.randomUUID()}`;
 
     const result = await query(
       `INSERT INTO saved_diagrams (id, name, description, entities, relationships, user_id, user_email, is_guest, updated_at)
@@ -247,40 +328,50 @@ router.post('/diagrams', async (req, res) => {
          description = EXCLUDED.description,
          entities = EXCLUDED.entities,
          relationships = EXCLUDED.relationships,
-         user_id = EXCLUDED.user_id,
-         user_email = EXCLUDED.user_email,
-         is_guest = EXCLUDED.is_guest,
          updated_at = NOW()
-       RETURNING id, name, description, entities, relationships, user_id, user_email, is_guest, created_at, updated_at`,
+       WHERE saved_diagrams.user_id = EXCLUDED.user_id
+       RETURNING id, name, description, entities, relationships, is_guest, created_at, updated_at`,
       [
         diagramId,
         name.trim(),
         description.trim(),
         JSON.stringify(entities),
         JSON.stringify(relationships),
-        String(userId),
-        String(userEmail),
-        Boolean(isGuest)
+        session.id,
+        session.email || '',
+        session.type === 'guest'
       ]
     );
 
+    if (result.rows.length === 0) {
+      return res.status(403).json({ error: 'You do not have permission to overwrite this diagram.' });
+    }
+
     return res.json({
       diagram: result.rows[0],
-      message: isGuest
+      message: session.type === 'guest'
         ? 'Diagram saved to temporary guest session.'
         : 'Diagram saved to your permanent Neon account successfully.'
     });
   } catch (err) {
     console.error('Error saving diagram:', err);
-    return res.status(500).json({ error: err.message || 'Failed to save diagram.' });
+    return res.status(500).json({ error: 'Failed to save diagram.' });
   }
 });
 
-// Delete a diagram
+// Delete a diagram (strictly scoped to owner)
 router.delete('/diagrams/:id', async (req, res) => {
   try {
+    const session = await getSessionUser(req);
+    if (!session) {
+      return res.status(401).json({ error: 'Unauthorized: Authentication required.' });
+    }
+
     const { id } = req.params;
-    const result = await query('DELETE FROM saved_diagrams WHERE id = $1 RETURNING id', [id]);
+    const result = await query(
+      'DELETE FROM saved_diagrams WHERE id = $1 AND user_id = $2 RETURNING id',
+      [id, session.id]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Diagram not found.' });
@@ -289,7 +380,7 @@ router.delete('/diagrams/:id', async (req, res) => {
     return res.json({ success: true, deletedId: id });
   } catch (err) {
     console.error('Error deleting diagram:', err);
-    return res.status(500).json({ error: err.message || 'Failed to delete diagram.' });
+    return res.status(500).json({ error: 'Failed to delete diagram.' });
   }
 });
 

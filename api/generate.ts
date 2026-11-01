@@ -218,11 +218,34 @@ async function generateWithClaude(description: string, apiKey: string) {
   return toolBlock.input;
 }
 
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(ip: string, limit = 15, windowMs = 60000): boolean {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip);
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+  if (record.count >= limit) {
+    return false;
+  }
+  record.count += 1;
+  return true;
+}
+
 export default async function handler(req: any, res: any) {
   // 1. Only POST allowed
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Use POST' });
+  }
+
+  // Rate limiting by client IP
+  const forwarded = req.headers['x-forwarded-for'];
+  const clientIp = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : (req.socket?.remoteAddress || 'unknown');
+  if (!checkRateLimit(clientIp, 15, 60000)) {
+    return res.status(429).json({ error: 'Too many generation requests. Please wait a minute and try again.' });
   }
 
   try {

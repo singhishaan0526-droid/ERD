@@ -1,10 +1,9 @@
 import { neon } from '@neondatabase/serverless';
 
-const DEFAULT_DATABASE_URL = 'postgresql://neondb_owner:npg_9bNiKeExT7yW@ep-square-smoke-b4yppib2-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require';
-
 export function getDb() {
-  const connectionString = process.env.DATABASE_URL || DEFAULT_DATABASE_URL;
-  return neon(connectionString);
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error('DATABASE_URL is not set');
+  return neon(url);
 }
 
 let isInitialized = false;
@@ -13,11 +12,11 @@ export async function ensureTables(sql: ReturnType<typeof neon>) {
   if (isInitialized) return;
 
   try {
-    // 1. Users table
+    // 1. Users table (indexed by id = Google sub)
     await sql`
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(128) PRIMARY KEY,
-        email VARCHAR(255) UNIQUE,
+        email VARCHAR(255),
         name VARCHAR(255),
         picture TEXT,
         provider VARCHAR(32) DEFAULT 'google',
@@ -34,7 +33,7 @@ export async function ensureTables(sql: ReturnType<typeof neon>) {
         description TEXT DEFAULT '',
         entities JSONB NOT NULL DEFAULT '[]'::jsonb,
         relationships JSONB NOT NULL DEFAULT '[]'::jsonb,
-        user_id VARCHAR(128) DEFAULT 'public',
+        user_id VARCHAR(128) NOT NULL,
         user_email VARCHAR(255) DEFAULT '',
         is_guest BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -42,10 +41,12 @@ export async function ensureTables(sql: ReturnType<typeof neon>) {
       );
     `;
 
-    // 3. Ensure columns exist
+    // 3. Ensure columns and indexes exist
     await sql`ALTER TABLE saved_diagrams ADD COLUMN IF NOT EXISTS user_id VARCHAR(128) DEFAULT 'public';`;
     await sql`ALTER TABLE saved_diagrams ADD COLUMN IF NOT EXISTS user_email VARCHAR(255) DEFAULT '';`;
     await sql`ALTER TABLE saved_diagrams ADD COLUMN IF NOT EXISTS is_guest BOOLEAN DEFAULT FALSE;`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_saved_diagrams_user_id ON saved_diagrams(user_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_saved_diagrams_guest ON saved_diagrams(is_guest);`;
 
     isInitialized = true;
   } catch (err) {

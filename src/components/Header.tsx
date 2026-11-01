@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { UserButton, SignInButton } from '@clerk/react';
 import {
   Download,
   LayoutGrid,
@@ -456,7 +457,39 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* User Account / Auth Status Dropdown */}
         <div style={{ position: 'relative', flexShrink: 0 }} ref={userDropdownRef}>
-          {currentUser ? (
+          {currentUser?.type === 'clerk' ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '2px 8px',
+              borderRadius: '8px',
+              border: '1.5px solid #86efac',
+              backgroundColor: '#f0fdf4',
+              height: '38px',
+              boxSizing: 'border-box'
+            }}>
+              <UserButton />
+              <span className="desktop-only" style={{
+                maxWidth: '110px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                color: '#166534'
+              }}>
+                {currentUser.name.split(' ')[0]}
+              </span>
+              <span style={{
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                backgroundColor: '#16a34a',
+                boxShadow: '0 0 6px #22c55e'
+              }} />
+            </div>
+          ) : currentUser ? (
             <button
               onClick={() => setUserMenuOpen(prev => !prev)}
               style={{
@@ -530,24 +563,25 @@ export const Header: React.FC<HeaderProps> = ({
               <ChevronDown size={13} style={{ opacity: 0.7 }} />
             </button>
           ) : (
-            <button
-              onClick={onOpenLogin}
-              className="btn btn-secondary"
-              style={{
-                minHeight: '38px',
-                height: '38px',
-                padding: '6px 12px',
-                fontSize: '12.5px',
-                fontWeight: 600
-              }}
-            >
-              <User size={15} />
-              <span>Sign In</span>
-            </button>
+            <SignInButton mode="modal">
+              <button
+                className="btn btn-secondary"
+                style={{
+                  minHeight: '38px',
+                  height: '38px',
+                  padding: '6px 12px',
+                  fontSize: '12.5px',
+                  fontWeight: 600
+                }}
+              >
+                <User size={15} />
+                <span>Sign In</span>
+              </button>
+            </SignInButton>
           )}
 
           {/* User Profile Dropdown Menu */}
-          {userMenuOpen && currentUser && (
+          {userMenuOpen && currentUser && currentUser.type !== 'clerk' && (
             <div
               className="animate-fade-in"
               style={{
@@ -632,7 +666,7 @@ export const Header: React.FC<HeaderProps> = ({
                       }}
                     >
                       <Sparkles size={14} color="#16a34a" />
-                      <span>Upgrade to Google (Save Work)</span>
+                      <span>Upgrade to Cloud (Save Work)</span>
                     </button>
                     <button
                       onClick={() => {

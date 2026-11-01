@@ -77,6 +77,37 @@ export function computeDiagramBounds(svgElement: SVGSVGElement): BoundingBox {
 }
 
 /**
+ * Sanitize an SVG element to eliminate potential stored XSS attacks
+ */
+export function sanitizeSvgElement(root: Element): void {
+  const disallowedTags = ['script', 'style', 'foreignobject', 'iframe', 'object', 'embed', 'audio', 'video', 'use', 'meta', 'link'];
+
+  // 1. Remove dangerous tags
+  disallowedTags.forEach(tag => {
+    const dangerousElements = root.querySelectorAll(tag);
+    dangerousElements.forEach(el => el.remove());
+  });
+
+  // 2. Strip event handlers and unsafe URI attributes from all elements
+  const allElements = [root, ...Array.from(root.querySelectorAll('*'))];
+  allElements.forEach(el => {
+    const attributeNames = el.getAttributeNames();
+    for (const attr of attributeNames) {
+      const lower = attr.toLowerCase();
+      if (lower.startsWith('on')) {
+        el.removeAttribute(attr);
+      }
+      if (lower === 'href' || lower === 'xlink:href' || lower === 'src') {
+        const val = (el.getAttribute(attr) || '').trim().toLowerCase();
+        if (val.startsWith('javascript:') || val.startsWith('data:text/html')) {
+          el.removeAttribute(attr);
+        }
+      }
+    }
+  });
+}
+
+/**
  * Generate a standalone, styled, valid XML SVG string with white background
  */
 export function getStandaloneSvgString(
@@ -125,11 +156,16 @@ export function getStandaloneSvgString(
       }
     });
 
+    // 3. Security sanitize SVG DOM to prevent stored XSS
+    sanitizeSvgElement(clone);
+
     const serializer = new XMLSerializer();
     contentString = serializer.serializeToString(clone);
   } else {
+    const clone = svgElement.cloneNode(true) as SVGSVGElement;
+    sanitizeSvgElement(clone);
     const serializer = new XMLSerializer();
-    contentString = serializer.serializeToString(svgElement);
+    contentString = serializer.serializeToString(clone);
   }
 
   // System font stack with Plus Jakarta Sans (loaded by host app), avoiding any external @import

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useUser, useClerk } from '@clerk/react';
 import { Entity, Relationship, Cardinality, ActiveTab, RawApiResponse, AttributeType, AuthUser } from './types';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -19,29 +20,14 @@ import { downloadPng, downloadSvg } from './utils/export';
 import { getPredefinedTemplate } from './utils/templates';
 
 export const App: React.FC = () => {
-  // Authentication user state: Google or Guest
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
-    try {
-      const savedGoogle = localStorage.getItem('erd_auth_user');
-      if (savedGoogle) return JSON.parse(savedGoogle);
-      const savedGuest = sessionStorage.getItem('erd_guest_session');
-      if (savedGuest) return JSON.parse(savedGuest);
-    } catch (e) {
-      console.error('Error loading stored user:', e);
-    }
-    return null;
-  });
+  const { user: clerkUser, isLoaded: isClerkLoaded, isSignedIn: isClerkSignedIn } = useUser();
+  const { signOut } = useClerk();
+
+  // Authentication user state: Clerk, Google or Guest (derived from secure HttpOnly session cookie)
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
   // Main view mode: 'login' | 'landing' | 'studio'
-  const [viewMode, setViewMode] = useState<'login' | 'landing' | 'studio'>(() => {
-    try {
-      const savedGoogle = localStorage.getItem('erd_auth_user');
-      if (savedGoogle) return 'studio';
-      const savedGuest = sessionStorage.getItem('erd_guest_session');
-      if (savedGuest) return 'studio';
-    } catch (e) {}
-    return 'login';
-  });
+  const [viewMode, setViewMode] = useState<'login' | 'landing' | 'studio'>('login');
 
   // Canvas Entities & Relationships
   const [entities, setEntities] = useState<Entity[]>([]);
@@ -76,14 +62,66 @@ export const App: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3200);
   };
 
+  // Synchronize Clerk user or check guest session
+  useEffect(() => {
+    let isMounted = true;
+
+    async function syncAuth() {
+      // 1. If Clerk has loaded and user is signed in with Clerk
+      if (isClerkLoaded && isClerkSignedIn && clerkUser) {
+        if (!isMounted) return;
+        const email = clerkUser.primaryEmailAddress?.emailAddress || '';
+        const name = clerkUser.fullName || clerkUser.firstName || clerkUser.username || email || 'User';
+        setCurrentUser({
+          type: 'clerk',
+          id: clerkUser.id,
+          email,
+          name,
+          picture: clerkUser.imageUrl
+        });
+        setViewMode('studio');
+        return;
+      }
+
+      // 2. If Clerk loaded and not signed in, check if there is an active guest session
+      if (isClerkLoaded && !isClerkSignedIn) {
+        try {
+          const res = await fetch('/api/auth/me', { credentials: 'include' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.user && isMounted) {
+              setCurrentUser(data.user);
+              setViewMode('studio');
+              return;
+            }
+          }
+        } catch (err) {
+          console.warn('Session verification check failed:', err);
+        }
+
+        if (isMounted) {
+          // Clear any old legacy localStorage/sessionStorage identity items
+          localStorage.removeItem('erd_auth_user');
+          sessionStorage.removeItem('erd_guest_session');
+          setCurrentUser(null);
+          setViewMode('login');
+        }
+      }
+    }
+
+    syncAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isClerkLoaded, isClerkSignedIn, clerkUser]);
+
   // --- Auth Handlers ---
   const handleLogin = (user: AuthUser) => {
     setCurrentUser(user);
-    if (user.type === 'google') {
-      localStorage.setItem('erd_auth_user', JSON.stringify(user));
+    if (user.type === 'clerk' || user.type === 'google') {
       showToast(`Welcome, ${user.name}! Cloud sync active (saving past records).`);
     } else {
-      sessionStorage.setItem('erd_guest_session', JSON.stringify(user));
       showToast('Guest mode started. Temporary session will be deleted on exit.');
     }
     setViewMode('studio');
@@ -91,12 +129,11 @@ export const App: React.FC = () => {
 
   const handleLogout = async () => {
     if (currentUser?.type === 'guest') {
-      // WIPE EVERYTHING for guest
+      // WIPE guest session data from database
       try {
         await fetch('/api/auth/guest-wipe', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ guestId: currentUser.id })
+          credentials: 'include'
         });
       } catch (err) {
         console.error('Failed to wipe guest records on server:', err);
@@ -107,17 +144,35 @@ export const App: React.FC = () => {
       setSelectedEntityId(null);
       setSelectedAttributeId(null);
       setSelectedRelationshipId(null);
-      sessionStorage.removeItem('erd_guest_session');
       localStorage.removeItem('erd_auth_user');
+      sessionStorage.removeItem('erd_guest_session');
       setCurrentUser(null);
       setViewMode('login');
       showToast('Guest session ended. All temporary data has been deleted.');
     } else {
-      // Google logout: past records remain safely in Neon Postgres
+      // Clerk or Google logout
+      if (isClerkSignedIn) {
+        try {
+          await signOut();
+        } catch (err) {
+          console.warn('Clerk signOut error:', err);
+        }
+      }
+
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'include'
+        });
+      } catch (err) {
+        console.error('Failed to log out:', err);
+      }
+
       localStorage.removeItem('erd_auth_user');
+      sessionStorage.removeItem('erd_guest_session');
       setCurrentUser(null);
       setViewMode('login');
-      showToast('Signed out of Google account. Your diagrams remain saved in Neon.');
+      showToast('Signed out. Your diagrams remain saved in Neon.');
     }
   };
 
@@ -513,7 +568,7 @@ export const App: React.FC = () => {
                     cursor: 'pointer'
                   }}
                 >
-                  Save with Google
+                  Save with Clerk
                 </button>
                 <button
                   onClick={handleLogout}
