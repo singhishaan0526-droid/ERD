@@ -24,6 +24,9 @@ interface LandingPageProps {
   onOpenErdToSql: () => void;
   onOpenImport: () => void;
   onLoadTemplate: (templateName: string) => void;
+  onOpenErDiagramMaker?: () => void;
+  onOpenSchemaDesigner?: () => void;
+  onOpenGuide?: () => void;
   onOpenPrivacy?: () => void;
   onOpenTerms?: () => void;
 }
@@ -58,6 +61,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onOpenErdToSql,
   onOpenImport,
   onLoadTemplate,
+  onOpenErDiagramMaker,
+  onOpenSchemaDesigner,
+  onOpenGuide,
   onOpenPrivacy,
   onOpenTerms
 }) => {
@@ -130,7 +136,34 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
 
         {/* Header Right Nav */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onOpenErDiagramMaker && (
+            <button
+              onClick={onOpenErDiagramMaker}
+              className="btn btn-ghost desktop-only"
+              style={{ padding: '6px 10px', fontSize: '13px', fontWeight: 600 }}
+            >
+              ER Diagram Maker
+            </button>
+          )}
+          {onOpenSchemaDesigner && (
+            <button
+              onClick={onOpenSchemaDesigner}
+              className="btn btn-ghost desktop-only"
+              style={{ padding: '6px 10px', fontSize: '13px', fontWeight: 600 }}
+            >
+              Schema Designer
+            </button>
+          )}
+          {onOpenGuide && (
+            <button
+              onClick={onOpenGuide}
+              className="btn btn-ghost desktop-only"
+              style={{ padding: '6px 10px', fontSize: '13px', fontWeight: 600 }}
+            >
+              Guide
+            </button>
+          )}
           <button
             onClick={onOpenStudio}
             className="btn btn-primary"
@@ -181,10 +214,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           color: 'var(--color-text-main)',
           lineHeight: 1.15,
           letterSpacing: '-0.03em',
-          maxWidth: '880px',
+          maxWidth: '920px',
           margin: '0 auto 18px'
         }}>
-          Design, Auto-Generate & Convert <span style={{ color: 'var(--color-primary)' }}>ER Diagrams</span> with SQL
+          Free <span style={{ color: 'var(--color-primary)' }}>ER Diagram Maker</span> Online &amp; Database Schema Designer
         </h1>
 
         {/* Subtitle */}
@@ -192,10 +225,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           fontSize: 'clamp(14.5px, 2vw, 18px)',
           color: 'var(--color-text-secondary)',
           lineHeight: 1.6,
-          maxWidth: '720px',
+          maxWidth: '760px',
           margin: '0 auto 32px'
         }}>
-          Transform plain English into academic Chen notation ER diagrams. Reverse-engineer SQL DDL code into visual models, and export diagrams back to clean SQL with 1-click copy.
+          Create and edit entity relationship diagrams online with academic Chen notation. Design database schemas, visualize table relationships, auto-generate models from English text, and export clean SQL DDL with zero setup.
         </p>
 
         {/* One Clear Primary Call to Action */}
@@ -286,10 +319,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <h2 style={{ fontSize: 'clamp(22px, 3.5vw, 32px)', fontWeight: 800, color: 'var(--color-text-main)', marginBottom: '8px' }}>
-            Everything You Need for ER Modeling & SQL
+            Online ER Diagram Tool &amp; SQL Database Schema Visualizer
           </h2>
           <p style={{ fontSize: '14.5px', color: 'var(--color-text-secondary)' }}>
-            Choose an action to immediately start working with your database schema
+            Choose an action to immediately start creating entity-relationship diagrams and SQL schemas
           </p>
         </div>
 
@@ -493,11 +526,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '20px' }}>
             <div>
-              <h3 style={{ fontSize: '19px', fontWeight: 800, color: 'var(--color-text-main)' }}>
-                Try Pre-Built Database Templates
-              </h3>
-              <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                Click any template to immediately open the diagram in the editor
+              <h2 style={{ fontSize: '19px', fontWeight: 800, color: 'var(--color-text-main)', margin: '0 0 4px' }}>
+                Try Pre-Built Relational Database Templates
+              </h2>
+              <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0 }}>
+                Click any template to explore real-world Chen ER models and database schemas
               </p>
             </div>
             <button
@@ -574,11 +607,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           border: '1.5px solid var(--color-border)',
           padding: 'clamp(20px, 3vw, 32px)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-            <BookOpen size={20} color="#2e7d32" />
-            <h3 style={{ fontSize: '17px', fontWeight: 800, color: 'var(--color-text-main)' }}>
-              Chen Notation Academic Quick Guide
-            </h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <BookOpen size={20} color="#2e7d32" />
+              <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--color-text-main)', margin: 0 }}>
+                Academic Chen Notation Reference for Students &amp; Developers
+              </h2>
+            </div>
+            {onOpenGuide && (
+              <button
+                onClick={onOpenGuide}
+                className="btn btn-ghost"
+                style={{ fontSize: '12.5px', fontWeight: 700, padding: '4px 10px', color: 'var(--color-primary-dark)' }}
+              >
+                <span>Read Full Step-by-Step Guide</span>
+                <ArrowRight size={13} />
+              </button>
+            )}
           </div>
 
           <div style={{
@@ -641,6 +686,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <button onClick={onOpenStudio} className="btn btn-ghost" style={{ padding: '4px 8px', minHeight: '32px', fontSize: '13px' }}>
               Launch Studio
             </button>
+            {onOpenErDiagramMaker && (
+              <button onClick={onOpenErDiagramMaker} className="btn btn-ghost" style={{ padding: '4px 8px', minHeight: '32px', fontSize: '13px' }}>
+                ER Diagram Maker
+              </button>
+            )}
+            {onOpenSchemaDesigner && (
+              <button onClick={onOpenSchemaDesigner} className="btn btn-ghost" style={{ padding: '4px 8px', minHeight: '32px', fontSize: '13px' }}>
+                Schema Designer
+              </button>
+            )}
+            {onOpenGuide && (
+              <button onClick={onOpenGuide} className="btn btn-ghost" style={{ padding: '4px 8px', minHeight: '32px', fontSize: '13px' }}>
+                Tutorial Guide
+              </button>
+            )}
             <button onClick={onOpenSqlToErd} className="btn btn-ghost" style={{ padding: '4px 8px', minHeight: '32px', fontSize: '13px' }}>
               SQL to ERD
             </button>

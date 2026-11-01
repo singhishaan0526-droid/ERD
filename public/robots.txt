@@ -1,9 +1,13 @@
-# robots.txt for ER Diagram Maker
+# robots.txt for ERD Developer Tool (https://erd-beige.vercel.app/)
 User-agent: *
 Allow: /
+Allow: /er-diagram-maker
+Allow: /database-schema-designer
+Allow: /guides/how-to-create-er-diagram
 Allow: /privacy
 Allow: /terms
 Disallow: /api/
+Disallow: /studio
+Disallow: /login
 
 Sitemap: https://erd-beige.vercel.app/sitemap.xml
-

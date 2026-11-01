@@ -21,10 +21,22 @@ import { getPredefinedTemplate } from './utils/templates';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { TermsPage } from './components/TermsPage';
 import { NotFoundPage } from './components/NotFoundPage';
+import { ErDiagramMakerPage } from './components/ErDiagramMakerPage';
+import { DatabaseSchemaDesignerPage } from './components/DatabaseSchemaDesignerPage';
+import { HowToCreateErDiagramGuidePage } from './components/HowToCreateErDiagramGuidePage';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { trackEvent } from './utils/analytics';
 
-export type AppViewMode = 'login' | 'landing' | 'studio' | 'privacy' | 'terms' | '404';
+export type AppViewMode =
+  | 'login'
+  | 'landing'
+  | 'studio'
+  | 'privacy'
+  | 'terms'
+  | '404'
+  | 'er-diagram-maker'
+  | 'database-schema-designer'
+  | 'guide-how-to-create-er-diagram';
 
 function getInitialViewMode(): AppViewMode {
   if (typeof window === 'undefined') return 'landing';
@@ -34,6 +46,9 @@ function getInitialViewMode(): AppViewMode {
   if (path === '/login' || path.startsWith('/sign-in') || path.startsWith('/sign-up')) return 'login';
   if (path === '/privacy') return 'privacy';
   if (path === '/terms') return 'terms';
+  if (path === '/er-diagram-maker') return 'er-diagram-maker';
+  if (path === '/database-schema-designer') return 'database-schema-designer';
+  if (path === '/guides/how-to-create-er-diagram' || path === '/guide') return 'guide-how-to-create-er-diagram';
   return '404';
 }
 
@@ -55,6 +70,9 @@ export const App: React.FC = () => {
       login: '/login',
       privacy: '/privacy',
       terms: '/terms',
+      'er-diagram-maker': '/er-diagram-maker',
+      'database-schema-designer': '/database-schema-designer',
+      'guide-how-to-create-er-diagram': '/guides/how-to-create-er-diagram',
       '404': window.location.pathname
     };
     const targetPath = pathMap[mode] || '/';
@@ -112,17 +130,70 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Dynamic Document Title based on current page / view (SEO)
+  // Dynamic Document Title and Meta Description based on current page / view (SEO)
   useEffect(() => {
-    const titleMap: Record<AppViewMode, string> = {
-      landing: 'ER Diagram Maker — DBMS Chen Notation Generator & Builder',
-      studio: 'Studio — ER Diagram Maker',
-      login: 'Sign In — ER Diagram Maker',
-      privacy: 'Privacy Policy — ER Diagram Maker',
-      terms: 'Terms and Conditions — ER Diagram Maker',
-      '404': '404 Not Found — ER Diagram Maker'
+    const seoMap: Record<AppViewMode, { title: string; desc: string; canonical: string }> = {
+      landing: {
+        title: 'Free ER Diagram Maker Online | ERD Developer Tool',
+        desc: 'Create and edit entity relationship diagrams online. Design database schemas, visualize table relationships, and organize your database structure with ERD Developer Tool.',
+        canonical: 'https://erd-beige.vercel.app/'
+      },
+      studio: {
+        title: 'Studio Canvas — ERD Developer Tool',
+        desc: 'Interactive ER diagram studio canvas in Chen notation with SQL bi-directional conversion.',
+        canonical: 'https://erd-beige.vercel.app/studio'
+      },
+      login: {
+        title: 'Sign In — ERD Developer Tool',
+        desc: 'Sign in to ERD Developer Tool with Clerk or continue as a guest for a temporary modeling session.',
+        canonical: 'https://erd-beige.vercel.app/login'
+      },
+      privacy: {
+        title: 'Privacy Policy — ERD Developer Tool',
+        desc: 'Privacy policy and data protection disclosures for ERD Developer Tool.',
+        canonical: 'https://erd-beige.vercel.app/privacy'
+      },
+      terms: {
+        title: 'Terms and Conditions — ERD Developer Tool',
+        desc: 'Terms of service and acceptable use agreement for ERD Developer Tool.',
+        canonical: 'https://erd-beige.vercel.app/terms'
+      },
+      'er-diagram-maker': {
+        title: 'ER Diagram Maker Online — Free Chen Notation Tool | ERD Developer Tool',
+        desc: 'Free online ER diagram maker in academic Chen notation. Build entity-relationship models with regular/weak entities, multi-valued attributes, cardinalities, and SVG/PNG export.',
+        canonical: 'https://erd-beige.vercel.app/er-diagram-maker'
+      },
+      'database-schema-designer': {
+        title: 'Database Schema Designer & SQL Visualizer | ERD Developer Tool',
+        desc: 'Design relational database schemas and visualize table relationships. Reverse engineer SQL DDL into visual ER diagrams and export schemas to PostgreSQL, MySQL, and SQLite.',
+        canonical: 'https://erd-beige.vercel.app/database-schema-designer'
+      },
+      'guide-how-to-create-er-diagram': {
+        title: 'How to Create an ER Diagram: Step-by-Step Guide | ERD Developer Tool',
+        desc: 'Learn how to create an Entity Relationship (ER) diagram from scratch. Step-by-step tutorial covering Chen notation symbols, entities, attributes, relationships, and SQL schema conversion.',
+        canonical: 'https://erd-beige.vercel.app/guides/how-to-create-er-diagram'
+      },
+      '404': {
+        title: '404 Not Found — ERD Developer Tool',
+        desc: 'Page not found.',
+        canonical: 'https://erd-beige.vercel.app/404'
+      }
     };
-    document.title = titleMap[viewMode] || 'ER Diagram Maker';
+
+    const currentSeo = seoMap[viewMode] || seoMap.landing;
+    document.title = currentSeo.title;
+
+    // Update meta description
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', currentSeo.desc);
+    }
+
+    // Update canonical link
+    let canonicalLink = document.querySelector('link[rel="canonical"]');
+    if (canonicalLink) {
+      canonicalLink.setAttribute('href', currentSeo.canonical);
+    }
   }, [viewMode]);
 
   // Synchronize Clerk user or check guest session
@@ -591,6 +662,41 @@ export const App: React.FC = () => {
             setIsSqlToErdOpen(true);
           }}
         />
+      ) : viewMode === 'er-diagram-maker' ? (
+        <ErDiagramMakerPage
+          onBackToHome={() => navigateTo('landing')}
+          onOpenStudio={() => navigateTo('studio')}
+          onOpenSchemaDesigner={() => navigateTo('database-schema-designer')}
+          onOpenGuide={() => navigateTo('guide-how-to-create-er-diagram')}
+          onOpenPrivacy={() => navigateTo('privacy')}
+          onOpenTerms={() => navigateTo('terms')}
+        />
+      ) : viewMode === 'database-schema-designer' ? (
+        <DatabaseSchemaDesignerPage
+          onBackToHome={() => navigateTo('landing')}
+          onOpenStudio={() => navigateTo('studio')}
+          onOpenErDiagramMaker={() => navigateTo('er-diagram-maker')}
+          onOpenGuide={() => navigateTo('guide-how-to-create-er-diagram')}
+          onOpenSqlToErd={() => {
+            navigateTo('studio');
+            setIsSqlToErdOpen(true);
+          }}
+          onOpenErdToSql={() => {
+            navigateTo('studio');
+            setIsErdToSqlOpen(true);
+          }}
+          onOpenPrivacy={() => navigateTo('privacy')}
+          onOpenTerms={() => navigateTo('terms')}
+        />
+      ) : viewMode === 'guide-how-to-create-er-diagram' ? (
+        <HowToCreateErDiagramGuidePage
+          onBackToHome={() => navigateTo('landing')}
+          onOpenStudio={() => navigateTo('studio')}
+          onOpenErDiagramMaker={() => navigateTo('er-diagram-maker')}
+          onOpenSchemaDesigner={() => navigateTo('database-schema-designer')}
+          onOpenPrivacy={() => navigateTo('privacy')}
+          onOpenTerms={() => navigateTo('terms')}
+        />
       ) : viewMode === 'landing' ? (
         /* 2. Landing Page View */
         <LandingPage
@@ -616,6 +722,9 @@ export const App: React.FC = () => {
             setIsImportExportOpen(true);
           }}
           onLoadTemplate={handleLoadTemplate}
+          onOpenErDiagramMaker={() => navigateTo('er-diagram-maker')}
+          onOpenSchemaDesigner={() => navigateTo('database-schema-designer')}
+          onOpenGuide={() => navigateTo('guide-how-to-create-er-diagram')}
           onOpenPrivacy={() => navigateTo('privacy')}
           onOpenTerms={() => navigateTo('terms')}
         />

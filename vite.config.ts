@@ -22,6 +22,16 @@ function apiDevPlugin() {
 export default defineConfig({
   envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
   plugins: [react(), apiDevPlugin()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          clerk: ['@clerk/react'],
+          lucide: ['lucide-react']
+        }
+      }
+    }
+  },
   server: {
     port: 5173,
     open: false
