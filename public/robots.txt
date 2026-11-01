@@ -5,5 +5,5 @@ Allow: /privacy
 Allow: /terms
 Disallow: /api/
 
-Sitemap: https://erd-maker.vercel.app/sitemap.xml
+Sitemap: https://erd-beige.vercel.app/sitemap.xml
 
