@@ -2,14 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Sparkles,
-  Layers,
-  GitCommit,
   Trash2,
   Copy,
   Plus,
   Check,
   Key,
-  HelpCircle
 } from 'lucide-react';
 import { Entity, Relationship, Attribute, AttributeType, Cardinality, RawApiResponse } from '../types';
 

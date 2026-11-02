@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Hammer, Layers, GitCommit } from 'lucide-react';
+import { Sparkles, Hammer } from 'lucide-react';
 import { ActiveTab, RawApiResponse, Entity, Relationship, Cardinality } from '../types';
 import { AutoGeneratePanel } from './AutoGeneratePanel';
 import { ManualBuilderPanel } from './ManualBuilderPanel';

@@ -4,13 +4,10 @@ import {
   ArrowRight,
   Database,
   Layers,
-  Code2,
-  CheckCircle2,
   Download,
   BookOpen,
   ArrowLeft,
   ChevronRight,
-  ShieldCheck,
   Zap
 } from 'lucide-react';
 

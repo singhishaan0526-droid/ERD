@@ -7,11 +7,8 @@ import {
   CheckCircle2,
   ArrowLeft,
   ChevronRight,
-  Sparkles,
   Terminal,
-  Cpu,
-  Layers,
-  BookOpen
+  Layers
 } from 'lucide-react';
 
 interface DatabaseSchemaDesignerPageProps {

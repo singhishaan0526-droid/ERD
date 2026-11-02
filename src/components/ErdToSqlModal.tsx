@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Copy, Check, Download, Database, Settings2 } from 'lucide-react';
+import { X, Copy, Check, Download, Database } from 'lucide-react';
 import { Entity, Relationship } from '../types';
 import { generateSqlFromERModel, SqlDialect } from '../utils/sqlGenerator';
 

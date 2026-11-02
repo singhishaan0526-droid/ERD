@@ -1,5 +1,5 @@
 import React from 'react';
-import { Entity, Relationship, Attribute, AttributeType } from '../types';
+import { Entity, Relationship, Attribute } from '../types';
 
 interface ChenDiagramProps {
   entities: Entity[];

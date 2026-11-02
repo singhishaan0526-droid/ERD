@@ -1,4 +1,4 @@
-import { Entity, Relationship, Attribute, AttributeType, Cardinality } from '../types';
+import { Entity, Relationship } from '../types';
 
 export type SqlDialect = 'standard' | 'postgres' | 'mysql' | 'sqlite';
 

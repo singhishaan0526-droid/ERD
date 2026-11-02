@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Info, X } from 'lucide-react';
+import { ShieldCheck, X } from 'lucide-react';
 
 interface CookieConsentBannerProps {
   onOpenPrivacy: () => void;

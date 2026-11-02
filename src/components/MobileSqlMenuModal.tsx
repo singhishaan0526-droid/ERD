@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Code2, Database, FileJson, ArrowRight, Sparkles } from 'lucide-react';
+import { X, Code2, Database, FileJson, ArrowRight } from 'lucide-react';
 
 interface MobileSqlMenuModalProps {
   isOpen: boolean;

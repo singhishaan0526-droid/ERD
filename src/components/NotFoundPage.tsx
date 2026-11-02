@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Layers, ArrowLeft, AlertCircle, Sparkles, Code2 } from 'lucide-react';
+import { Home, Layers, Code2 } from 'lucide-react';
 
 interface NotFoundPageProps {
   onBackToHome: () => void;

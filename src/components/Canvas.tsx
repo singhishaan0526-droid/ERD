@@ -7,11 +7,8 @@ import {
   Sparkles,
   Hammer,
   Edit2,
-  Plus,
   Trash2,
   Copy,
-  Layers,
-  GitCommit
 } from 'lucide-react';
 import { Entity, Relationship, Attribute, AttributeType, Cardinality } from '../types';
 import { ChenDiagram } from './ChenDiagram';

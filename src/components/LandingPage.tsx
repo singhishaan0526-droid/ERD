@@ -5,17 +5,12 @@ import {
   Database,
   Upload,
   ArrowRight,
-  Layers,
-  CheckCircle2,
   Copy,
-  Download,
   Terminal,
-  Cpu,
   BookOpen,
-  Zap,
   Play
 } from 'lucide-react';
-import { RawApiResponse, Entity, Relationship } from '../types';
+import { Entity, Relationship } from '../types';
 import { FaqAccordion } from './FaqAccordion';
 
 interface LandingPageProps {

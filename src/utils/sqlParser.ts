@@ -1,4 +1,4 @@
-import { Entity, Relationship, Attribute, AttributeType, ERModel, Cardinality } from '../types';
+import { Entity, Relationship, Attribute, AttributeType, Cardinality } from '../types';
 import { calculateAttributeOffset } from './layout';
 
 export interface SqlParseResult {

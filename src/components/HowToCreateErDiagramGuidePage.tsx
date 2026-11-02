@@ -4,13 +4,8 @@ import {
   ArrowRight,
   Database,
   Layers,
-  Code2,
-  CheckCircle2,
   ArrowLeft,
   ChevronRight,
-  HelpCircle,
-  Sparkles,
-  Lightbulb,
   AlertCircle
 } from 'lucide-react';
 import { FaqAccordion } from './FaqAccordion';

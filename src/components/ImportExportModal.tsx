@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Upload, Download, FileJson, Copy, Check, AlertCircle } from 'lucide-react';
-import { Entity, Relationship, ERModel } from '../types';
+import { Entity, Relationship } from '../types';
 import { autoLayoutER } from '../utils/layout';
 
 interface ImportExportModalProps {
