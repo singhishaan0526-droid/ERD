@@ -906,9 +906,9 @@ export const Canvas: React.FC<CanvasProps> = ({
 
         <button
           onClick={resetView}
-          className="btn btn-ghost desktop-only"
+          className="btn btn-ghost"
           style={{ width: '44px', height: '44px', padding: 0 }}
-          title="Reset Zoom to 100%"
+          title="Reset Zoom to 100% (1:1)"
           aria-label="Reset zoom"
         >
           <RotateCcw size={18} />

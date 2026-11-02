@@ -13,6 +13,7 @@ import {
   Lightbulb,
   AlertCircle
 } from 'lucide-react';
+import { FaqAccordion } from './FaqAccordion';
 
 interface HowToCreateErDiagramGuidePageProps {
   onBackToHome: () => void;
@@ -396,6 +397,12 @@ export const HowToCreateErDiagramGuidePage: React.FC<HowToCreateErDiagramGuidePa
           </section>
         </article>
       </main>
+
+      {/* Guide FAQ Accordion */}
+      <FaqAccordion
+        title="ER Diagram Creation FAQ"
+        subtitle="Common questions about entity keys, cardinality constraints, and translating Chen ER diagrams to relational SQL schemas."
+      />
 
       {/* Footer */}
       <footer style={{

@@ -225,6 +225,185 @@ export function getPredefinedTemplate(templateName: string): { entities: Entity[
     return { entities: autoLayoutER(entities, relationships), relationships };
   }
 
+  if (lower.includes('bank') || lower.includes('atm')) {
+    const entities: Entity[] = [
+      {
+        id: 'ent_cust',
+        name: 'Customer',
+        isWeak: false,
+        x: 200,
+        y: 180,
+        attributes: [
+          { id: 'a_c1', name: 'CustomerID', isPrimaryKey: true, attributeType: 'primary', offsetX: 0, offsetY: -95 },
+          { id: 'a_c2', name: 'FullName', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: -60 },
+          { id: 'a_c3', name: 'Address', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: 60 },
+          { id: 'a_c4', name: 'PhoneNumbers', isPrimaryKey: false, attributeType: 'multivalued', offsetX: -95, offsetY: 60 }
+        ]
+      },
+      {
+        id: 'ent_acc',
+        name: 'Account',
+        isWeak: false,
+        x: 550,
+        y: 180,
+        attributes: [
+          { id: 'a_acc1', name: 'AccountNumber', isPrimaryKey: true, attributeType: 'primary', offsetX: 0, offsetY: -95 },
+          { id: 'a_acc2', name: 'AccountType', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: -60 },
+          { id: 'a_acc3', name: 'Balance', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: 60 }
+        ]
+      },
+      {
+        id: 'ent_tx',
+        name: 'Transaction',
+        isWeak: true, // Weak Entity dependent on Account
+        x: 900,
+        y: 180,
+        attributes: [
+          { id: 'a_tx1', name: 'TxID', isPrimaryKey: false, attributeType: 'partial', offsetX: 0, offsetY: -95 },
+          { id: 'a_tx2', name: 'Amount', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: -60 },
+          { id: 'a_tx3', name: 'TxDate', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: 60 },
+          { id: 'a_tx4', name: 'TxType', isPrimaryKey: false, attributeType: 'normal', offsetX: -95, offsetY: 60 }
+        ]
+      },
+      {
+        id: 'ent_card',
+        name: 'ATM_Card',
+        isWeak: false,
+        x: 550,
+        y: 500,
+        attributes: [
+          { id: 'a_cd1', name: 'CardNumber', isPrimaryKey: true, attributeType: 'primary', offsetX: 0, offsetY: 95 },
+          { id: 'a_cd2', name: 'PinCode', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: 60 },
+          { id: 'a_cd3', name: 'ExpiryDate', isPrimaryKey: false, attributeType: 'normal', offsetX: -95, offsetY: 60 }
+        ]
+      },
+      {
+        id: 'ent_branch',
+        name: 'Branch',
+        isWeak: false,
+        x: 200,
+        y: 500,
+        attributes: [
+          { id: 'a_br1', name: 'BranchCode', isPrimaryKey: true, attributeType: 'primary', offsetX: 0, offsetY: 95 },
+          { id: 'a_br2', name: 'BranchName', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: 60 },
+          { id: 'a_br3', name: 'City', isPrimaryKey: false, attributeType: 'normal', offsetX: -95, offsetY: 60 }
+        ]
+      },
+      {
+        id: 'ent_atm',
+        name: 'ATM',
+        isWeak: false,
+        x: 900,
+        y: 500,
+        attributes: [
+          { id: 'a_atm1', name: 'ATM_ID', isPrimaryKey: true, attributeType: 'primary', offsetX: 0, offsetY: 95 },
+          { id: 'a_atm2', name: 'Location', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: 60 },
+          { id: 'a_atm3', name: 'CashAvailable', isPrimaryKey: false, attributeType: 'derived', offsetX: -95, offsetY: 60 }
+        ]
+      }
+    ];
+
+    const relationships: Relationship[] = [
+      { id: 'r1', name: 'Holds', fromEntityId: 'ent_cust', toEntityId: 'ent_acc', cardinality: '1:N', isIdentifying: false },
+      { id: 'r2', name: 'Logs', fromEntityId: 'ent_acc', toEntityId: 'ent_tx', cardinality: '1:N', isIdentifying: true },
+      { id: 'r3', name: 'Issues', fromEntityId: 'ent_acc', toEntityId: 'ent_card', cardinality: '1:1', isIdentifying: false },
+      { id: 'r4', name: 'Maintains', fromEntityId: 'ent_branch', toEntityId: 'ent_acc', cardinality: '1:N', isIdentifying: false },
+      { id: 'r5', name: 'Manages', fromEntityId: 'ent_branch', toEntityId: 'ent_atm', cardinality: '1:N', isIdentifying: false }
+    ];
+
+    return { entities: autoLayoutER(entities, relationships), relationships };
+  }
+
+  if (lower.includes('air') || lower.includes('flight') || lower.includes('plane')) {
+    const entities: Entity[] = [
+      {
+        id: 'ent_pax',
+        name: 'Passenger',
+        isWeak: false,
+        x: 200,
+        y: 180,
+        attributes: [
+          { id: 'a_px1', name: 'PassengerID', isPrimaryKey: true, attributeType: 'primary', offsetX: 0, offsetY: -95 },
+          { id: 'a_px2', name: 'FullName', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: -60 },
+          { id: 'a_px3', name: 'PassportNo', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: 60 },
+          { id: 'a_px4', name: 'ContactNos', isPrimaryKey: false, attributeType: 'multivalued', offsetX: -95, offsetY: 60 }
+        ]
+      },
+      {
+        id: 'ent_tkt',
+        name: 'Ticket',
+        isWeak: false,
+        x: 550,
+        y: 180,
+        attributes: [
+          { id: 'a_tk1', name: 'TicketNumber', isPrimaryKey: true, attributeType: 'primary', offsetX: 0, offsetY: -95 },
+          { id: 'a_tk2', name: 'SeatNumber', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: -60 },
+          { id: 'a_tk3', name: 'Price', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: 60 },
+          { id: 'a_tk4', name: 'BookingDate', isPrimaryKey: false, attributeType: 'normal', offsetX: -95, offsetY: 60 }
+        ]
+      },
+      {
+        id: 'ent_flt',
+        name: 'Flight',
+        isWeak: false,
+        x: 900,
+        y: 180,
+        attributes: [
+          { id: 'a_fl1', name: 'FlightNumber', isPrimaryKey: true, attributeType: 'primary', offsetX: 0, offsetY: -95 },
+          { id: 'a_fl2', name: 'DepartureTime', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: -60 },
+          { id: 'a_fl3', name: 'ArrivalTime', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: 60 },
+          { id: 'a_fl4', name: 'FlightDuration', isPrimaryKey: false, attributeType: 'derived', offsetX: -95, offsetY: 60 }
+        ]
+      },
+      {
+        id: 'ent_craft',
+        name: 'Aircraft',
+        isWeak: false,
+        x: 200,
+        y: 500,
+        attributes: [
+          { id: 'a_cr1', name: 'AircraftID', isPrimaryKey: true, attributeType: 'primary', offsetX: 0, offsetY: 95 },
+          { id: 'a_cr2', name: 'Model', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: 60 },
+          { id: 'a_cr3', name: 'Capacity', isPrimaryKey: false, attributeType: 'normal', offsetX: -95, offsetY: 60 }
+        ]
+      },
+      {
+        id: 'ent_port',
+        name: 'Airport',
+        isWeak: false,
+        x: 550,
+        y: 500,
+        attributes: [
+          { id: 'a_ap1', name: 'AirportCode', isPrimaryKey: true, attributeType: 'primary', offsetX: 0, offsetY: 95 },
+          { id: 'a_ap2', name: 'AirportName', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: 60 },
+          { id: 'a_ap3', name: 'City', isPrimaryKey: false, attributeType: 'normal', offsetX: -95, offsetY: 60 }
+        ]
+      },
+      {
+        id: 'ent_plt',
+        name: 'Pilot',
+        isWeak: false,
+        x: 900,
+        y: 500,
+        attributes: [
+          { id: 'a_pl1', name: 'LicenseNumber', isPrimaryKey: true, attributeType: 'primary', offsetX: 0, offsetY: 95 },
+          { id: 'a_pl2', name: 'PilotName', isPrimaryKey: false, attributeType: 'normal', offsetX: 95, offsetY: 60 },
+          { id: 'a_pl3', name: 'FlightHours', isPrimaryKey: false, attributeType: 'normal', offsetX: -95, offsetY: 60 }
+        ]
+      }
+    ];
+
+    const relationships: Relationship[] = [
+      { id: 'r1', name: 'Books', fromEntityId: 'ent_pax', toEntityId: 'ent_tkt', cardinality: '1:N', isIdentifying: false },
+      { id: 'r2', name: 'Assigned_To', fromEntityId: 'ent_tkt', toEntityId: 'ent_flt', cardinality: '1:1', isIdentifying: false },
+      { id: 'r3', name: 'Operates', fromEntityId: 'ent_craft', toEntityId: 'ent_flt', cardinality: '1:N', isIdentifying: false },
+      { id: 'r4', name: 'Lands_At', fromEntityId: 'ent_flt', toEntityId: 'ent_port', cardinality: '1:1', isIdentifying: false },
+      { id: 'r5', name: 'Flies', fromEntityId: 'ent_plt', toEntityId: 'ent_flt', cardinality: 'M:N', isIdentifying: false }
+    ];
+
+    return { entities: autoLayoutER(entities, relationships), relationships };
+  }
+
   // Library
   const entities: Entity[] = [
     {

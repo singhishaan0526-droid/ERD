@@ -1,88 +1,128 @@
-# ER Diagram Maker (Chen Notation)
+# ER Diagram Maker (Academic Chen Notation)
 
-A fast, interactive Entity-Relationship (ER) diagram builder designed mobile-first for DBMS students, teachers, and software developers. Auto-generate complete database models from plain-English descriptions using Anthropic Claude or build them by hand on a high-performance SVG canvas.
+[![Live Demo](https://img.shields.io/badge/Live_Demo-erd--beige.vercel.app-2E7D32?style=for-the-badge&logo=vercel)](https://erd-beige.vercel.app/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+[![Theme](https://img.shields.io/badge/Theme-Emerald_Grass_Green-4CAF50?style=for-the-badge)](#features)
+[![Mobile Ready](https://img.shields.io/badge/Mobile-Optimized-0284c7?style=for-the-badge)](#mobile-first--touch-optimized)
 
-![Color Theme](https://img.shields.io/badge/Theme-Grass_Green_%26_White-4CAF50)
-![Notation](https://img.shields.io/badge/Notation-Chen_DBMS-2E7D32)
-![Mobile](https://img.shields.io/badge/Mobile-First-blue)
+A modern, lightning-fast Entity-Relationship (ER) diagram designer built for computer science students, database instructors, software engineers, and system architects. Model relational database schemas using canonical **Peter Chen (1976) notation**, auto-generate diagrams from plain English descriptions, reverse engineer SQL DDL into visual schemas, and export printable A4 PDF assignments in 1 click.
+
+**Website:** [https://erd-beige.vercel.app/](https://erd-beige.vercel.app/)
 
 ---
 
-## Features
+## Key Features
 
-- **Full Academic DBMS Chen Notation**:
-  - **Regular Entity**: Rectangle
-  - **Weak Entity**: Double Rectangle (concentric)
-  - **Primary Key**: Solid Underline
-  - **Partial Key (Discriminator)**: Dashed Underline
-  - **Multivalued Attribute**: Double Oval (concentric)
-  - **Derived Attribute**: Dashed Oval
-  - **Regular Relationship**: Diamond with Cardinality (`1:1`, `1:N`, `M:N`)
-  - **Identifying Relationship**: Double Diamond (concentric)
-- **Auto-Generate with Claude & Built-in DBMS Engine**:
-  - Describe your database in plain English (e.g. *"A hospital with patients, doctors, appointments, and prescriptions"*).
-  - Powered by Anthropic Claude API (`ANTHROPIC_API_KEY`) with an offline DBMS NLP rule fallback.
-- **Mobile-First & Touch-Optimized**:
-  - Full-screen canvas on phones with zero horizontal scroll from 320px up.
-  - Sticky bottom toolbar and slide-up bottom edit sheet.
-  - One-finger shape drag & canvas pan at 60 FPS (`requestAnimationFrame`).
-  - Two-finger pinch-to-zoom and floating zoom controls.
-  - Tap / double-tap to edit directly on canvas.
-  - Long-press haptic quick-action menu (Duplicate / Delete / Edit).
-  - All touch targets $\ge 44 \times 44\text{px}$.
-  - Base font size 16px on inputs to prevent iOS browser auto-zoom.
-- **1-Click High-Res Export**:
-  - **PNG** (crisp high-DPI retina with pure `#FFFFFF` background).
-  - **SVG** (scalable vector graphics).
-  - Mobile fallback modal with "Long-press to save to Photos" and native Web Share integration.
-- **No Login / No Account**:
-  - Starts completely empty on first load (no fake or demo data).
-  - 100% private: diagrams live in the browser session.
+### 1. Full Academic Chen Notation
+- **Regular Entity**: Solid single rectangle.
+- **Weak Entity**: Concentric double rectangle.
+- **Primary Key (PK)**: Solid underline attribute.
+- **Partial Key (Discriminator)**: Dashed underline attribute.
+- **Normal Attribute**: Single oval / ellipse.
+- **Multivalued Attribute**: Concentric double oval.
+- **Derived Attribute**: Dashed oval.
+- **Relationship**: Diamond with explicit cardinality labels (`1:1`, `1:N`, `M:N`).
+- **Identifying Relationship**: Concentric double diamond connecting weak entities to owner entities.
+
+### 2. Bidirectional SQL Engine
+- **SQL DDL to ERD**: Paste `CREATE TABLE` scripts for PostgreSQL, MySQL, SQLite, or Oracle. Automatically reverse-engineers tables to entities, primary keys, and foreign-key constraints into relationship diamonds.
+- **ERD to SQL DDL**: 1-click generation of normalized SQL DDL scripts with primary keys, foreign keys, and referential actions.
+
+### 3. Multi-Format High-Resolution Export
+- **Printable A4 PDF**: 1-click vector-sharp PDF export (A4 Landscape) complete with diagram title, generation timestamp, and attribution—ready for college lab submissions.
+- **PNG**: Crisp 2x Retina PNG with transparent or solid background.
+- **SVG**: Infinite-resolution scalable vector graphic.
+
+### 4. Natural Language ERD Generator
+- Describe database requirements in plain English (e.g., *"Design an airline flight reservation system with passengers, flights, tickets, aircraft, airports, and pilots"*).
+- Generates entities, attributes, relationships, and cardinalities automatically.
+
+### 5. Pre-Built DBMS Exam & Industry Templates
+Explore 6 comprehensive database models aligned with ABET, GATE, and university computer science curricula:
+1. **Banking & ATM System** (Customer, Account, Transaction, ATM Card, Branch, ATM Terminal).
+2. **Airline Flight Reservation** (Passenger, Flight, Ticket, Aircraft, Airport, Pilot).
+3. **E-Commerce Store** (Customer, Order, OrderItem, Product, Category, Payment).
+4. **University System** (Department, Course, Section, Student, Instructor, Enrollment).
+5. **Hospital Management** (Doctor, Patient, Appointment, Prescription, Room).
+6. **Library Management** (Book, Author, Member, Loan, Publisher, Fine).
+
+### 6. Cloud Sync with Neon PostgreSQL & Clerk Auth
+- Zero-friction guest mode: Use immediately with zero sign-up or credit card.
+- Optional Google / Clerk authentication to persist diagrams to Neon serverless PostgreSQL.
+
+### 7. Mobile-First & Touch-Optimized
+- 60 FPS hardware-accelerated pan and drag loop via `requestAnimationFrame`.
+- Multi-touch pinch-to-zoom and floating zoom controls (`+`, `-`, `Reset 100%`, `Fit to View`).
+- Touch-friendly 44x44px hitboxes on mobile devices.
 
 ---
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript, Vite, Lucide Icons, Pure Vanilla CSS
-- **Backend**: Express, Anthropic Claude Messages API, Rate Limiting
-- **Graphics**: Interactive SVG with requestAnimationFrame 60fps drag loop
+| Layer | Technology |
+|---|---|
+| **Frontend** | React 18, TypeScript, Vite, Pure CSS variables, Lucide React |
+| **Backend API** | Vercel Serverless Functions, Express, Rate Limiting |
+| **Database** | Neon Serverless PostgreSQL (`@neondatabase/serverless`) |
+| **Authentication** | Clerk Authentication & Google OAuth (HttpOnly secure session cookies) |
+| **Graphics** | SVG / Canvas with native single-page PDF generator |
 
 ---
 
 ## Getting Started
 
-### 1. Clone the repository
+### Prerequisites
+- Node.js 18+ or 20+
+- npm or pnpm
+
+### Installation
+
 ```bash
+# Clone the repository
 git clone https://github.com/singhishaan0526-droid/ERD.git
 cd ERD
-```
 
-### 2. Install dependencies
-```bash
+# Install dependencies
 npm install
 ```
 
-### 3. (Optional) Configure API Key
-Create a `.env` file in the root directory:
-```env
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-PORT=3000
-```
-*(Note: If no API key is provided, the app seamlessly runs using its built-in enterprise DBMS knowledge engine).*
+### Environment Configuration
 
-### 4. Run the application
+Create a `.env` file in the root directory (refer to `.env.example`):
+
+```env
+# Optional: Neon Serverless PostgreSQL
+DATABASE_URL=postgresql://user:password@ep-example.us-east-2.aws.neon.tech/neondb?sslmode=require
+
+# Optional: Clerk Authentication
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+```
+
+### Running Locally
+
 ```bash
-# Start production server (API + Web on port 3000)
+# Start Vite development server
+npm run dev
+
+# Or build for production
 npm run build
 npm start
-
-# Or start Vite development server
-npm run dev
 ```
 
-Open **[http://localhost:3000](http://localhost:3000)** in your browser or phone.
+Open `http://localhost:5173` or `http://localhost:3000` in your browser.
+
+---
+
+## SEO & Accessibility
+
+- **Standard HTML5**: Semantic landmarks (`<header>`, `<main>`, `<nav>`, `<footer>`, `<article>`).
+- **Schema.org Structured Data**: Validated `@graph` with `WebApplication`, `BreadcrumbList`, `Organization`, `WebSite`, and `FAQPage`.
+- **Crawlers**: 3-tier `robots.txt` explicitly welcoming search engines and LLM answer engines (`OAI-SearchBot`, `PerplexityBot`, `Claude-SearchBot`, `ChatGPT-User`).
+- **LLM Context**: Public [`/llms.txt`](https://erd-beige.vercel.app/llms.txt) and [`/llms-full.txt`](https://erd-beige.vercel.app/llms-full.txt) documentation endpoints.
 
 ---
 
 ## License
-MIT License.
+
+This project is licensed under the [MIT License](LICENSE).

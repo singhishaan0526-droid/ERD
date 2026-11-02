@@ -16,6 +16,7 @@ import {
   Play
 } from 'lucide-react';
 import { RawApiResponse, Entity, Relationship } from '../types';
+import { FaqAccordion } from './FaqAccordion';
 
 interface LandingPageProps {
   onOpenStudio: () => void;
@@ -46,6 +47,16 @@ const TEMPLATES = [
     name: 'Hospital Management',
     tag: 'Enterprise',
     desc: 'Doctor, Patient, Appointment, Prescription (Weak), Department, and Room.'
+  },
+  {
+    name: 'Banking & ATM System',
+    tag: 'Exam Classic',
+    desc: 'Customer, Account, Transaction (Weak), ATM Card, Branch, and ATM Terminal.'
+  },
+  {
+    name: 'Airline Flight Reservation',
+    tag: 'DBMS Standard',
+    desc: 'Passenger, Flight, Ticket, Aircraft, Airport, and Pilot with multi-relation constraints.'
   },
   {
     name: 'Library Management',
@@ -667,6 +678,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
         </div>
       </section>
+
+      {/* Frequently Asked Questions (FAQ) with Schema.org alignment */}
+      <FaqAccordion />
 
       {/* Footer */}
       <footer style={{

@@ -231,12 +231,13 @@ export function downloadSvg(svgElement: SVGSVGElement, filename = 'er-diagram.sv
 }
 
 /**
- * Generate high-res PNG data URL and Blob
+ * Render SVG to an HTMLCanvasElement
  */
-export function generatePngData(
+function renderSvgToCanvas(
   svgElement: SVGSVGElement,
-  scale = 2
-): Promise<{ dataUrl: string; blob: Blob }> {
+  scale = 2,
+  backgroundColor = '#FFFFFF'
+): Promise<{ canvas: HTMLCanvasElement; width: number; height: number }> {
   return new Promise((resolve, reject) => {
     try {
       // Generate standalone SVG rendered natively at scaled dimensions for ultra-crisp output
@@ -244,44 +245,19 @@ export function generatePngData(
       const targetWidth = Math.round(width * scale);
       const targetHeight = Math.round(height * scale);
 
-      const renderToCanvas = (img: HTMLImageElement) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = targetWidth;
-        canvas.height = targetHeight;
+      const canvas = document.createElement('canvas');
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
 
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          throw new Error('Canvas 2D context not available');
-        }
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Canvas 2D context not available');
+      }
 
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-
-        const dataUrl = canvas.toDataURL('image/png');
-        canvas.toBlob((pngBlob) => {
-          if (!pngBlob) {
-            // Fallback converting dataURL to blob directly
-            try {
-              const byteString = atob(dataUrl.split(',')[1]);
-              const mimeString = dataUrl.split(',')[0].split(':')[1].split(';')[0];
-              const ab = new ArrayBuffer(byteString.length);
-              const ia = new Uint8Array(ab);
-              for (let i = 0; i < byteString.length; i++) {
-                ia[i] = byteString.charCodeAt(i);
-              }
-              const fallbackBlob = new Blob([ab], { type: mimeString });
-              resolve({ dataUrl, blob: fallbackBlob });
-            } catch (convErr) {
-              reject(new Error('Failed to create PNG blob from canvas'));
-            }
-            return;
-          }
-          resolve({ dataUrl, blob: pngBlob });
-        }, 'image/png');
-      };
+      ctx.fillStyle = backgroundColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
 
       // 1. Primary approach: Data URI with URL encoding (safe across all modern browsers)
       const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
@@ -290,7 +266,8 @@ export function generatePngData(
 
       primaryImg.onload = () => {
         try {
-          renderToCanvas(primaryImg);
+          ctx.drawImage(primaryImg, 0, 0, targetWidth, targetHeight);
+          resolve({ canvas, width: targetWidth, height: targetHeight });
         } catch (err) {
           reject(err);
         }
@@ -306,7 +283,8 @@ export function generatePngData(
 
           fallbackImg.onload = () => {
             try {
-              renderToCanvas(fallbackImg);
+              ctx.drawImage(fallbackImg, 0, 0, targetWidth, targetHeight);
+              resolve({ canvas, width: targetWidth, height: targetHeight });
             } catch (err) {
               reject(err);
             } finally {
@@ -316,7 +294,7 @@ export function generatePngData(
 
           fallbackImg.onerror = () => {
             URL.revokeObjectURL(blobUrl);
-            reject(new Error('Failed to load SVG diagram into image for PNG export'));
+            reject(new Error('Failed to load SVG diagram into image for export'));
           };
 
           fallbackImg.src = blobUrl;
@@ -330,6 +308,159 @@ export function generatePngData(
       reject(err);
     }
   });
+}
+
+/**
+ * Generate high-res PNG data URL and Blob
+ */
+export async function generatePngData(
+  svgElement: SVGSVGElement,
+  scale = 2
+): Promise<{ dataUrl: string; blob: Blob }> {
+  const { canvas } = await renderSvgToCanvas(svgElement, scale);
+  const dataUrl = canvas.toDataURL('image/png');
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((pngBlob) => {
+      if (!pngBlob) {
+        try {
+          const byteString = atob(dataUrl.split(',')[1]);
+          const mimeString = dataUrl.split(',')[0].split(':')[1].split(';')[0];
+          const ab = new ArrayBuffer(byteString.length);
+          const ia = new Uint8Array(ab);
+          for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+          }
+          const fallbackBlob = new Blob([ab], { type: mimeString });
+          resolve({ dataUrl, blob: fallbackBlob });
+        } catch (convErr) {
+          reject(new Error('Failed to create PNG blob from canvas'));
+        }
+        return;
+      }
+      resolve({ dataUrl, blob: pngBlob });
+    }, 'image/png');
+  });
+}
+
+/**
+ * Download diagram as a high-resolution, printable PDF document (A4 Landscape)
+ */
+export async function downloadPdf(
+  svgElement: SVGSVGElement,
+  filename = 'er-diagram.pdf',
+  title = 'Entity Relationship Diagram'
+): Promise<void> {
+  const { canvas, width, height } = await renderSvgToCanvas(svgElement, 2);
+
+  const jpegBlob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((b) => {
+      if (b) resolve(b);
+      else reject(new Error('Failed to create JPEG for PDF export'));
+    }, 'image/jpeg', 0.95);
+  });
+
+  const jpegArrayBuffer = await jpegBlob.arrayBuffer();
+  const jpegBytes = new Uint8Array(jpegArrayBuffer);
+
+  // Standard A4 Landscape dimensions in PDF points (72 pt / inch)
+  const pageWidth = 842;
+  const pageHeight = 595;
+  const margin = 36;
+  const headerHeight = 44;
+
+  const availWidth = pageWidth - margin * 2;
+  const availHeight = pageHeight - margin * 2 - headerHeight;
+
+  const aspect = width / height;
+  let drawW = availWidth;
+  let drawH = availWidth / aspect;
+
+  if (drawH > availHeight) {
+    drawH = availHeight;
+    drawW = availHeight * aspect;
+  }
+
+  const offsetX = margin + (availWidth - drawW) / 2;
+  const offsetY = margin + (availHeight - drawH) / 2;
+
+  const cleanTitle = title.replace(/[()\\\r\n]/g, '').slice(0, 80);
+  const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const contentStream = [
+    'BT',
+    '/F1 14 Tf',
+    `${margin} ${pageHeight - margin - 12} Td`,
+    `(${cleanTitle}) Tj`,
+    '0 -16 Td',
+    '/F1 9 Tf',
+    `(Generated on ${dateStr} by ER Diagram Maker - https://erd-beige.vercel.app/) Tj`,
+    'ET',
+    'q',
+    `${drawW.toFixed(2)} 0 0 ${drawH.toFixed(2)} ${offsetX.toFixed(2)} ${offsetY.toFixed(2)} cm`,
+    '/Im1 Do',
+    'Q'
+  ].join('\n');
+
+  const encoder = new TextEncoder();
+  const contentBytes = encoder.encode(contentStream);
+
+  const header = encoder.encode('%PDF-1.4\n');
+  const obj1 = encoder.encode('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+  const obj2 = encoder.encode('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+  const obj3 = encoder.encode(`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 6 0 R >> /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`);
+  
+  const obj4Head = encoder.encode(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`);
+  const obj4Tail = encoder.encode('\nendstream\nendobj\n');
+
+  const obj5 = encoder.encode(`5 0 obj\n<< /Length ${contentBytes.length} >>\nstream\n${contentStream}\nendstream\nendobj\n`);
+  const obj6 = encoder.encode('6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
+
+  const offsets: number[] = [];
+  let currentOffset = header.length;
+
+  offsets.push(currentOffset);
+  currentOffset += obj1.length;
+
+  offsets.push(currentOffset);
+  currentOffset += obj2.length;
+
+  offsets.push(currentOffset);
+  currentOffset += obj3.length;
+
+  offsets.push(currentOffset);
+  currentOffset += obj4Head.length + jpegBytes.length + obj4Tail.length;
+
+  offsets.push(currentOffset);
+  currentOffset += obj5.length;
+
+  offsets.push(currentOffset);
+  currentOffset += obj6.length;
+
+  const xrefOffset = currentOffset;
+  let xrefStr = 'xref\n0 7\n0000000000 65535 f \n';
+  for (const off of offsets) {
+    xrefStr += String(off).padStart(10, '0') + ' 00000 n \n';
+  }
+  const xref = encoder.encode(xrefStr);
+
+  const trailer = encoder.encode(`trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`);
+
+  const pdfBlob = new Blob([
+    header,
+    obj1,
+    obj2,
+    obj3,
+    obj4Head,
+    jpegBytes,
+    obj4Tail,
+    obj5,
+    obj6,
+    xref,
+    trailer
+  ], { type: 'application/pdf' });
+
+  const finalFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+  triggerBrowserDownload(pdfBlob, finalFilename);
 }
 
 /**

@@ -16,7 +16,7 @@ import { ImportExportModal } from './components/ImportExportModal';
 import { MobileSqlMenuModal } from './components/MobileSqlMenuModal';
 import { NeonModal } from './components/NeonModal';
 import { convertApiToModel, autoLayoutER, calculateAttributeOffset } from './utils/layout';
-import { downloadPng, downloadSvg } from './utils/export';
+import { downloadPng, downloadSvg, downloadPdf } from './utils/export';
 import { getPredefinedTemplate } from './utils/templates';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { TermsPage } from './components/TermsPage';
@@ -605,6 +605,27 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleDownloadPdf = async () => {
+    if (entities.length === 0) {
+      showToast('Add or generate entities first to download.');
+      return;
+    }
+    if (!svgRef.current) {
+      showToast('Canvas not ready for export.');
+      return;
+    }
+    setIsDownloading(true);
+    try {
+      await downloadPdf(svgRef.current, 'er-diagram.pdf', 'Entity Relationship Diagram');
+      showToast('Downloaded er-diagram.pdf');
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      alert('Failed to export PDF. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   // --- Template & Model Loading ---
   const handleLoadTemplate = (name: string) => {
     const tmpl = getPredefinedTemplate(name);
@@ -804,6 +825,7 @@ export const App: React.FC = () => {
             onClearCanvas={handleClearCanvas}
             onDownloadPng={handleDownloadPng}
             onDownloadSvg={handleDownloadSvg}
+            onDownloadPdf={handleDownloadPdf}
             isDownloading={isDownloading}
             onOpenHelp={() => setIsHelpOpen(true)}
             onOpenLanding={() => navigateTo('landing')}

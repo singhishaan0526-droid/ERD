@@ -29,6 +29,7 @@ interface HeaderProps {
   onClearCanvas: () => void;
   onDownloadPng: () => void;
   onDownloadSvg: () => void;
+  onDownloadPdf?: () => void;
   isDownloading: boolean;
   onOpenHelp: () => void;
   onOpenLanding: () => void;
@@ -48,6 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
   onClearCanvas,
   onDownloadPng,
   onDownloadSvg,
+  onDownloadPdf,
   isDownloading,
   onOpenHelp,
   onOpenLanding,
@@ -411,6 +413,45 @@ export const Header: React.FC<HeaderProps> = ({
                   <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Vector graphics</div>
                 </div>
               </button>
+
+              {onDownloadPdf && (
+                <button
+                  onClick={() => {
+                    setDownloadMenuOpen(false);
+                    onDownloadPdf();
+                  }}
+                  className="btn btn-ghost"
+                  style={{
+                    width: '100%',
+                    justifyContent: 'flex-start',
+                    padding: '10px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '13px',
+                    marginTop: '2px',
+                    minHeight: '44px'
+                  }}
+                >
+                  <div style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '4px',
+                    backgroundColor: '#fee2e2',
+                    color: '#dc2626',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                    fontSize: '10px',
+                    flexShrink: 0
+                  }}>
+                    PDF
+                  </div>
+                  <div style={{ textAlign: 'left', marginLeft: '8px' }}>
+                    <div style={{ fontWeight: 700 }}>Download PDF</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Printable document / A4</div>
+                  </div>
+                </button>
+              )}
 
               <div style={{ height: '1px', backgroundColor: 'var(--color-border)', margin: '4px 0' }} />
 

@@ -116,6 +116,52 @@
             "ERD to SQL DDL Exporter (PostgreSQL, MySQL, SQLite)",
             "Cloud Sync with Neon Serverless Postgres"
           ]
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://erd-beige.vercel.app/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is the difference between Chen notation and Crow's Foot notation in ER diagrams?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Peter Chen's 1976 notation represents entities as rectangles, attributes as ovals, and relationships as diamonds with explicit cardinality markers (1:1, 1:N, M:N). It is the canonical notation taught in university computer science and database systems curricula. Crow's Foot notation represents tables as boxes with columns inside and connections as lines with multi-fork symbols. ER Diagram Maker specializes in academic Chen notation while offering 1-click export to SQL DDL."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How do I convert an SQL DDL schema into an ER diagram?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Click the 'SQL to ERD' button in the navigation bar. Paste standard CREATE TABLE statements (supporting PostgreSQL, MySQL, SQLite, and Oracle DDL). The built-in SQL parser analyzes tables, columns, primary keys, foreign keys, and constraints, automatically drawing entity rectangles, attribute ovals, and relationship diamonds on the canvas."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is ER Diagram Maker free and does it require an account?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, ER Diagram Maker is 100% free with zero mandatory login. You can immediately generate or build diagrams as a guest. If you wish to save your diagrams to the cloud and access them across devices, you can optionally sign in using Google or Clerk to persist diagrams to Neon serverless PostgreSQL."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How do I model weak entities and partial keys in Chen notation?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A weak entity depends on an owner entity for its existence and primary identification (e.g., OrderItem depending on Order). In Chen notation, weak entities are represented with double rectangles, identifying relationships with double diamonds, and partial keys (discriminators) with dashed underlines. In our tool, click on any entity and toggle 'Weak Entity' to render double borders automatically."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I export my ER diagrams to PNG, SVG, and printable PDF for homework or exams?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes! Click the 'Download' dropdown in the editor to export crisp 2x PNG images, scalable vector SVG files, or printable A4 Landscape PDF documents formatted with title and date headers for university assignment submissions."
+              }
+            }
+          ]
         }
       ]
     }
@@ -167,6 +213,30 @@
             <li><strong>ERD to SQL DDL Exporter (PostgreSQL, MySQL, SQLite):</strong> Forward engineers visual diagrams into production SQL schemas for PostgreSQL, MySQL, and SQLite.</li>
             <li><strong>Cloud Sync with Neon Serverless Postgres:</strong> Permanent cloud persistence for saved diagrams.</li>
           </ul>
+        </section>
+
+        <section>
+          <h2>Frequently Asked Questions</h2>
+          <details open>
+            <summary><strong>What is the difference between Chen notation and Crow's Foot notation in ER diagrams?</strong></summary>
+            <p>Peter Chen's 1976 notation represents entities as rectangles, attributes as ovals, and relationships as diamonds with explicit cardinality markers (1:1, 1:N, M:N). It is the canonical notation taught in university computer science and database systems curricula. Crow's Foot notation represents tables as boxes with columns inside and connections as lines with multi-fork symbols. ER Diagram Maker specializes in academic Chen notation while offering 1-click export to SQL DDL.</p>
+          </details>
+          <details>
+            <summary><strong>How do I convert an SQL DDL schema into an ER diagram?</strong></summary>
+            <p>Click the 'SQL to ERD' button in the navigation bar. Paste standard CREATE TABLE statements (supporting PostgreSQL, MySQL, SQLite, and Oracle DDL). The built-in SQL parser analyzes tables, columns, primary keys, foreign keys, and constraints, automatically drawing entity rectangles, attribute ovals, and relationship diamonds on the canvas.</p>
+          </details>
+          <details>
+            <summary><strong>Is ER Diagram Maker free and does it require an account?</strong></summary>
+            <p>Yes, ER Diagram Maker is 100% free with zero mandatory login. You can immediately generate or build diagrams as a guest. If you wish to save your diagrams to the cloud and access them across devices, you can optionally sign in using Google or Clerk to persist diagrams to Neon serverless PostgreSQL.</p>
+          </details>
+          <details>
+            <summary><strong>How do I model weak entities and partial keys in Chen notation?</strong></summary>
+            <p>A weak entity depends on an owner entity for its existence and primary identification (e.g., OrderItem depending on Order). In Chen notation, weak entities are represented with double rectangles, identifying relationships with double diamonds, and partial keys (discriminators) with dashed underlines. In our tool, click on any entity and toggle 'Weak Entity' to render double borders automatically.</p>
+          </details>
+          <details>
+            <summary><strong>Can I export my ER diagrams to PNG, SVG, and printable PDF for homework or exams?</strong></summary>
+            <p>Yes! Click the 'Download' dropdown in the editor to export crisp 2x PNG images, scalable vector SVG files, or printable A4 Landscape PDF documents formatted with title and date headers for university assignment submissions.</p>
+          </details>
         </section>
 
         <section>
