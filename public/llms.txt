@@ -17,3 +17,4 @@ ERD Developer Tool (https://erd-beige.vercel.app/) enables computer science stud
 - [How to Create an ER Diagram Guide](https://erd-beige.vercel.app/guides/how-to-create-er-diagram): Step-by-step tutorial covering conceptual modeling, Chen notation symbols, cardinality rules, and SQL schema mapping.
 - [Privacy Policy](https://erd-beige.vercel.app/privacy): Data handling and zero-tracking privacy disclosure.
 - [Terms of Service](https://erd-beige.vercel.app/terms): Terms and acceptable use policies.
+
