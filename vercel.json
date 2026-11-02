@@ -16,7 +16,7 @@
       ]
     },
     {
-      "source": "/(favicon\\.svg|og-image\\.svg|site\\.webmanifest|robots\\.txt|sitemap\\.xml|google9a15f7a888352d3a\\.html)",
+      "source": "/(favicon\\.svg|og-image\\.svg|site\\.webmanifest|robots\\.txt|sitemap\\.xml|google9a15f7a888352d3a\\.html|llms\\.txt|llms-full\\.txt)",
       "headers": [
         {
           "key": "Cache-Control",

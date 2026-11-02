@@ -1,4 +1,6 @@
 # robots.txt for ERD Developer Tool (https://erd-beige.vercel.app/)
+# Generative Engine Optimization (GEO) & Search Engine Crawlers
+
 User-agent: *
 Allow: /
 Allow: /er-diagram-maker
@@ -9,5 +11,47 @@ Allow: /terms
 Disallow: /api/
 Disallow: /studio
 Disallow: /login
+
+# 🟢 1. RAG & Real-Time Search Crawlers (Essential for LLM citations in ChatGPT Search, Perplexity, Claude, Le Chat)
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: YouBot
+Allow: /
+
+User-agent: DuckAssistBot
+Allow: /
+
+# 🟢 2. User-Request Crawlers (Triggered when users ask ChatGPT, Claude, or Gemini to read this site)
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: Gemini-User
+Allow: /
+
+User-agent: Google-Agent
+Allow: /
+
+User-agent: MistralAI-User
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+# 🔴 3. Training Crawlers (Block bulk corpus scrapers with zero bilateral citation value)
+User-agent: CCBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
 
 Sitemap: https://erd-beige.vercel.app/sitemap.xml

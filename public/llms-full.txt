@@ -1,0 +1,62 @@
+# ERD Developer Tool — Complete Technical & Schema Reference
+
+> Comprehensive documentation for AI agents, generative search engines, and developers.
+> Canonical URL: https://erd-beige.vercel.app/
+
+---
+
+## 1. Product Overview
+ERD Developer Tool is a free, web-based software application specialized in Entity-Relationship (ER) diagram modeling using academic Peter Chen notation. It features an automated AI prompt generator, bi-directional SQL DDL parsing and generation, and serverless PostgreSQL database synchronization.
+
+- **Primary URL**: https://erd-beige.vercel.app/
+- **Pricing**: 100% Free ($0 USD), zero credit card required
+- **Access Model**: Instant guest modeling with optional Clerk authentication
+- **Database Engine**: Neon Serverless PostgreSQL
+
+---
+
+## 2. Chen Notation Conventions & Geometric Shapes
+In contrast to physical Crow's Foot ER diagrams that resemble tabular database grids, Peter Chen's 1976 notation represents conceptual entities and semantic relationships using geometric primitives:
+
+1. **Regular Entity (Rectangle)**: Represents an independent concept or object (e.g., `Customer`, `Order`, `Course`, `Student`).
+2. **Weak Entity (Double Rectangle)**: Represents an entity whose existence depends on an identifying owner entity (e.g., `OrderItem`, `Dependent`, `Section`).
+3. **Relationship (Diamond)**: Represents a semantic association between two or more entities (e.g., `Places`, `Enrolls_In`).
+4. **Identifying Relationship (Double Diamond)**: Associates a weak entity with its identifying regular entity.
+5. **Key Attribute (Oval with Solid Underline)**: Unique identifier for an entity tuple (Primary Key in relational models).
+6. **Partial Key / Discriminator (Oval with Dashed Underline)**: Distinguishes instances of a weak entity that share the same identifying parent.
+7. **Multivalued Attribute (Concentric Double Oval)**: Attributes that hold multiple discrete values for a single entity instance (e.g., `Phone_Numbers`, `Skills`).
+8. **Derived Attribute (Dashed Oval)**: Attributes whose values are calculated from stored attributes (e.g., `Age` calculated from `BirthDate`).
+
+---
+
+## 3. Relational Mapping Rules (ERD to SQL DDL)
+The tool converts Chen notation models into relational tables adhering to standard database normalization:
+
+- **Regular Entities**: Each converts to a distinct table. Key attributes become `PRIMARY KEY`.
+- **1:1 Relationships**: The primary key of one entity is inserted as a unique `FOREIGN KEY` into the participating entity table.
+- **1:N Relationships**: The primary key from the '1' cardinality side is embedded into the 'N' cardinality side table as a `FOREIGN KEY`.
+- **M:N Relationships**: A dedicated associative or junction table is created containing foreign keys pointing to both participating tables, with a composite primary key.
+- **Weak Entities**: Convert to tables containing a foreign key referencing the identifying parent plus the partial key to form a composite primary key with `ON DELETE CASCADE`.
+
+---
+
+## 4. Supported Public Indexable Pages
+1. **Homepage** (`/`): https://erd-beige.vercel.app/
+2. **ER Diagram Maker** (`/er-diagram-maker`): https://erd-beige.vercel.app/er-diagram-maker
+3. **Database Schema Designer** (`/database-schema-designer`): https://erd-beige.vercel.app/database-schema-designer
+4. **Tutorial Guide** (`/guides/how-to-create-er-diagram`): https://erd-beige.vercel.app/guides/how-to-create-er-diagram
+5. **Privacy Policy** (`/privacy`): https://erd-beige.vercel.app/privacy
+6. **Terms of Service** (`/terms`): https://erd-beige.vercel.app/terms
+
+---
+
+## 5. Frequently Asked Questions (FAQ)
+
+### What is the difference between Chen notation and Crow's Foot notation?
+Chen notation uses distinct geometric shapes (rectangles for entities, diamonds for relationships, ovals for attributes) to emphasize conceptual database semantics. Crow's foot notation uses table compartments and pronged lines to emphasize physical schema design. Chen notation is standard in academic computer science and DBMS university curricula.
+
+### How do I export my diagram?
+Click the download menu in the studio header to export crisp vector SVGs, high-resolution PNG images, or generated SQL DDL files compatible with PostgreSQL, MySQL, and SQLite.
+
+### Can I save diagrams permanently?
+Yes. Users can log in using Clerk with Google OAuth to save diagrams permanently to Neon Serverless PostgreSQL. Guests can also draft diagrams immediately in temporary local sessions.

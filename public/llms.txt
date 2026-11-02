@@ -1,0 +1,19 @@
+# ERD Developer Tool
+
+> Free online Entity-Relationship (ER) diagram maker and relational database schema visualizer supporting academic Peter Chen notation.
+
+ERD Developer Tool (https://erd-beige.vercel.app/) enables computer science students, database administrators, and software engineers to design, auto-generate, and convert ER diagrams and relational database schemas with zero login requirements.
+
+## Core Capabilities
+- **Academic Chen Notation Modeling**: Complete visual modeling for regular entities (rectangles), weak entities (double rectangles), relationships (diamonds), cardinalities (1:1, 1:N, M:N), and specialized attribute shapes (key attributes with solid underline, partial keys with dashed underline, multivalued attributes with double ovals, and derived attributes with dashed ovals).
+- **AI Natural Language ERD Generator**: Automatically transforms descriptive English problem statements into structured Chen ER diagrams using automated entity and relationship extraction.
+- **Bi-Directional SQL Converter**: Reverse-engineers SQL DDL `CREATE TABLE` scripts into visual ER diagrams, and forward-engineers visual diagrams into clean, ANSI-compliant SQL DDL (PostgreSQL, MySQL, SQLite).
+- **Zero Login & Cloud Sync**: Instant guest drafting without required sign-in, with optional Clerk authentication and permanent cloud persistence in Neon Serverless Postgres.
+- **High-Resolution Vector Export**: Instant PNG and SVG vector export for DBMS lab reports, academic publications, and architecture specs.
+
+## Public Indexable Resources & Guides
+- [ER Diagram Maker](https://erd-beige.vercel.app/er-diagram-maker): Dedicated tool page for visual Chen notation ER modeling and vector export.
+- [Database Schema Designer](https://erd-beige.vercel.app/database-schema-designer): Relational table schema designer, SQL DDL parser, and visualizer.
+- [How to Create an ER Diagram Guide](https://erd-beige.vercel.app/guides/how-to-create-er-diagram): Step-by-step tutorial covering conceptual modeling, Chen notation symbols, cardinality rules, and SQL schema mapping.
+- [Privacy Policy](https://erd-beige.vercel.app/privacy): Data handling and zero-tracking privacy disclosure.
+- [Terms of Service](https://erd-beige.vercel.app/terms): Terms and acceptable use policies.

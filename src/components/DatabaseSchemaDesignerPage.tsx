@@ -397,3 +397,4 @@ export const DatabaseSchemaDesignerPage: React.FC<DatabaseSchemaDesignerPageProp
     </div>
   );
 };
+
